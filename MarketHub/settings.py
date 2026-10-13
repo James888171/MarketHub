@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
+import os
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -38,6 +39,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'usuarios',
+    'categorias',
     'productos',
     'ordenes',
 ]
@@ -79,9 +81,7 @@ DATABASES = {
     'default': {
         'ENGINE': 'djongo',
         'NAME': 'markethub_db',
-        'CLIENT': {
-            'host': 'mongodb://localhost:27017/',
-        }
+        'HOST': os.environ.get('MONGO_HOST', 'mongodb://localhost:27017/'),
     }
 }
 

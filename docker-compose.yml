@@ -1,0 +1,21 @@
+services:
+  mongo:
+    image: mongo:5.0
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+
+  web:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - MONGO_HOST=mongodb://mongo:27017/
+    volumes:
+      - .:/app
+    depends_on:
+      - mongo
+
+volumes:
+  mongo_data:

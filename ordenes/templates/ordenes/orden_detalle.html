@@ -1,0 +1,55 @@
+{% extends 'productos/base.html' %}
+
+{% block titulo %}Orden #{{ orden.id }}{% endblock %}
+
+{% block contenido %}
+<h1>Orden #{{ orden.id }}</h1>
+
+{% if error %}
+    <p class="error">{{ error }}</p>
+{% endif %}
+
+<p>Fecha: {{ orden.fecha|date:"d/m/Y H:i" }}</p>
+<p>Estado: <b>{{ orden.estado_nombre }}</b></p>
+<p>Cliente: {{ orden.usuario.nombre }} ({{ orden.usuario.email }})</p>
+<p>Direccion de envio: {{ orden.direccion_envio.calle }}, {{ orden.direccion_envio.ciudad }}</p>
+
+<table>
+    <tr>
+        <th>Producto</th>
+        <th>Precio unitario</th>
+        <th>Cantidad</th>
+        <th>Subtotal</th>
+    </tr>
+    {% for item in orden.items %}
+        <tr>
+            <td>{{ item.producto.nombre }}</td>
+            <td>${{ item.precio_unitario }}</td>
+            <td>{{ item.cantidad }}</td>
+            <td>${{ item.subtotal }}</td>
+        </tr>
+    {% endfor %}
+</table>
+
+<p>Total: <b>${{ orden.total }}</b></p>
+
+{% if es_admin and orden.estado != 'cancelado' %}
+    <h3>Cambiar estado</h3>
+    <form method="post" action="{% url 'ordenes:orden_cambiar_estado' orden.id %}">
+        {% csrf_token %}
+        <select name="estado">
+            {% for valor, nombre in estados %}
+                <option value="{{ valor }}" {% if orden.estado == valor %}selected{% endif %}>{{ nombre }}</option>
+            {% endfor %}
+        </select>
+        <button type="submit">Guardar estado</button>
+    </form>
+{% endif %}
+
+<p>
+    {% if puede_cancelar %}
+        <a href="{% url 'ordenes:orden_cancelar' orden.id %}">Cancelar orden</a>
+    {% endif %}
+    <a href="{% url 'ordenes:orden_listar' %}">Volver</a>
+</p>
+{% endblock %}

@@ -1,0 +1,54 @@
+{% extends 'productos/base.html' %}
+
+{% block titulo %}Ordenes{% endblock %}
+
+{% block contenido %}
+<h1>{% if es_admin %}Ordenes{% else %}Mis ordenes{% endif %}</h1>
+
+<form method="get">
+    {% if es_admin %}
+        <input type="text" name="q" value="{{ busqueda }}" placeholder="Buscar por email">
+    {% endif %}
+    <select name="estado">
+        <option value="">Todos los estados</option>
+        {% for valor, nombre in estados %}
+            <option value="{{ valor }}" {% if estado == valor %}selected{% endif %}>{{ nombre }}</option>
+        {% endfor %}
+    </select>
+    <button type="submit">Filtrar</button>
+    {% if busqueda or estado %}
+        <a href="{% url 'ordenes:orden_listar' %}">Limpiar</a>
+    {% endif %}
+</form>
+
+<br>
+
+{% if ordenes %}
+    <table>
+        <tr>
+            <th>#</th>
+            {% if es_admin %}<th>Cliente</th>{% endif %}
+            <th>Fecha</th>
+            <th>Productos</th>
+            <th>Total</th>
+            <th>Estado</th>
+            <th>Acciones</th>
+        </tr>
+        {% for orden in ordenes %}
+            <tr>
+                <td>{{ orden.id }}</td>
+                {% if es_admin %}<td>{{ orden.usuario.nombre }} ({{ orden.usuario.email }})</td>{% endif %}
+                <td>{{ orden.fecha|date:"d/m/Y H:i" }}</td>
+                <td>{{ orden.cantidad_productos }}</td>
+                <td>${{ orden.total }}</td>
+                <td>{{ orden.estado_nombre }}</td>
+                <td><a href="{% url 'ordenes:orden_detalle' orden.id %}">Ver detalle</a></td>
+            </tr>
+        {% endfor %}
+    </table>
+{% else %}
+    <p>No hay ordenes.</p>
+{% endif %}
+
+<p>{{ ordenes|length }} ordenes encontradas.</p>
+{% endblock %}

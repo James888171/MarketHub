@@ -1,0 +1,52 @@
+{% extends 'productos/base.html' %}
+
+{% block titulo %}{{ titulo }}{% endblock %}
+
+{% block contenido %}
+<h1>{{ titulo }}</h1>
+
+{% if error %}
+    <p class="error">{{ error }}</p>
+{% endif %}
+
+{% if not categorias %}
+    <p class="error">Primero debes crear una categoria activa. <a href="{% url 'categorias:categoria_crear' %}">Crear categoria</a></p>
+{% endif %}
+
+<form method="post">
+    {% csrf_token %}
+
+    <p>
+        <label for="nombre">Nombre</label><br>
+        <input type="text" id="nombre" name="nombre" value="{{ producto.nombre }}" required>
+    </p>
+
+    <p>
+        <label for="precio">Precio</label><br>
+        <input type="text" id="precio" name="precio" value="{{ producto.precio }}" required>
+    </p>
+
+    <p>
+        <label for="stock">Stock</label><br>
+        <input type="text" id="stock" name="stock" value="{{ producto.stock }}" required>
+    </p>
+
+    <p>
+        <label for="categoria">Categoria</label><br>
+        <select id="categoria" name="categoria" required>
+            <option value="">Selecciona una categoria</option>
+            {% for categoria in categorias %}
+                <option value="{{ categoria.id }}" {% if producto.categoria_id == categoria.id|stringformat:"s" %}selected{% endif %}>{{ categoria.nombre }}</option>
+            {% endfor %}
+        </select>
+    </p>
+
+    <p>
+        <input type="checkbox" id="activo" name="activo" {% if producto.activo %}checked{% endif %}>
+        <label for="activo">Activo</label>
+    </p>
+
+    <button type="submit">{{ boton }}</button>
+    <a href="{% url 'productos:producto_listar' %}">Cancelar</a>
+</form>
+{% endblock %}

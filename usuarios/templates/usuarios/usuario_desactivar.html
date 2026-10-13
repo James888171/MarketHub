@@ -1,0 +1,16 @@
+{% extends 'productos/base.html' %}
+
+{% block titulo %}Desactivar usuario{% endblock %}
+
+{% block contenido %}
+<h1>Desactivar usuario</h1>
+
+<p>Seguro que quieres desactivar a <b>{{ persona.nombre }}</b> ({{ persona.email }})?</p>
+<p>Ya no va a poder iniciar sesion, pero sus ordenes no se pierden.</p>
+
+<form method="post">
+    {% csrf_token %}
+    <button type="submit">Si, desactivar</button>
+    <a href="{% url 'usuarios:usuario_detalle' persona.id %}">Cancelar</a>
+</form>
+{% endblock %}

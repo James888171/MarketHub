@@ -1,0 +1,29 @@
+{% extends 'productos/base.html' %}
+
+{% block titulo %}Iniciar sesion{% endblock %}
+
+{% block contenido %}
+<h1>Iniciar sesion</h1>
+
+{% if error %}
+    <p class="error">{{ error }}</p>
+{% endif %}
+
+<form method="post">
+    {% csrf_token %}
+
+    <p>
+        <label for="email">Email</label><br>
+        <input type="email" id="email" name="email" value="{{ email }}" required>
+    </p>
+
+    <p>
+        <label for="password">Contraseña</label><br>
+        <input type="password" id="password" name="password" required>
+    </p>
+
+    <button type="submit">Entrar</button>
+</form>
+
+<p>No tienes cuenta? <a href="{% url 'usuarios:registrarse' %}">Registrate</a></p>
+{% endblock %}

@@ -1,0 +1,51 @@
+{% extends 'productos/base.html' %}
+
+{% block titulo %}Usuarios{% endblock %}
+
+{% block contenido %}
+<h1>Usuarios</h1>
+
+<form method="get">
+    <input type="text" name="q" value="{{ busqueda }}" placeholder="Buscar por email">
+    <select name="rol">
+        <option value="">Todos los roles</option>
+        {% for valor, nombre in roles %}
+            <option value="{{ valor }}" {% if rol == valor %}selected{% endif %}>{{ nombre }}</option>
+        {% endfor %}
+    </select>
+    <button type="submit">Buscar</button>
+    {% if busqueda or rol %}
+        <a href="{% url 'usuarios:usuario_listar' %}">Limpiar</a>
+    {% endif %}
+</form>
+
+<br>
+
+{% if usuarios %}
+    <table>
+        <tr>
+            <th>Nombre</th>
+            <th>Email</th>
+            <th>Rol</th>
+            <th>Estado</th>
+            <th>Acciones</th>
+        </tr>
+        {% for persona in usuarios %}
+            <tr>
+                <td>{{ persona.nombre }}</td>
+                <td>{{ persona.email }}</td>
+                <td>{{ persona.rol }}</td>
+                <td>{% if persona.activo %}Activo{% else %}Inactivo{% endif %}</td>
+                <td>
+                    <a href="{% url 'usuarios:usuario_detalle' persona.id %}">Ver detalle</a>
+                    <a href="{% url 'usuarios:usuario_editar' persona.id %}">Editar</a>
+                </td>
+            </tr>
+        {% endfor %}
+    </table>
+{% else %}
+    <p>No hay usuarios.</p>
+{% endif %}
+
+<p>Mostrando {{ usuarios|length }} de {{ total }} usuarios.</p>
+{% endblock %}

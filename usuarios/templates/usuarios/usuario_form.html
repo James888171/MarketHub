@@ -1,0 +1,49 @@
+{% extends 'productos/base.html' %}
+
+{% block titulo %}Editar usuario{% endblock %}
+
+{% block contenido %}
+<h1>Editar usuario</h1>
+
+{% if error %}
+    <p class="error">{{ error }}</p>
+{% endif %}
+
+<p>Email: {{ persona.email }}</p>
+
+<form method="post">
+    {% csrf_token %}
+
+    <p>
+        <label for="nombre">Nombre</label><br>
+        <input type="text" id="nombre" name="nombre" value="{{ datos.nombre }}" required>
+    </p>
+
+    <p>
+        <label for="rol">Rol</label><br>
+        <select id="rol" name="rol">
+            {% for valor, nombre in roles %}
+                <option value="{{ valor }}" {% if datos.rol == valor %}selected{% endif %}>{{ nombre }}</option>
+            {% endfor %}
+        </select>
+    </p>
+
+    <p>
+        <label for="calle">Calle</label><br>
+        <input type="text" id="calle" name="calle" value="{{ datos.calle }}">
+    </p>
+
+    <p>
+        <label for="ciudad">Ciudad</label><br>
+        <input type="text" id="ciudad" name="ciudad" value="{{ datos.ciudad }}">
+    </p>
+
+    <p>
+        <input type="checkbox" id="activo" name="activo" {% if datos.activo %}checked{% endif %}>
+        <label for="activo">Activo</label>
+    </p>
+
+    <button type="submit">Guardar cambios</button>
+    <a href="{% url 'usuarios:usuario_detalle' persona.id %}">Cancelar</a>
+</form>
+{% endblock %}

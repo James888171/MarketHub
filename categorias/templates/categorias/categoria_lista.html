@@ -1,0 +1,43 @@
+{% extends 'productos/base.html' %}
+
+{% block titulo %}Categorias{% endblock %}
+
+{% block contenido %}
+<h1>Categorias</h1>
+
+<form method="get">
+    <input type="text" name="q" value="{{ busqueda }}" placeholder="Buscar categoria">
+    <button type="submit">Buscar</button>
+    {% if busqueda %}
+        <a href="{% url 'categorias:categoria_listar' %}">Limpiar</a>
+    {% endif %}
+</form>
+
+<p><a href="{% url 'categorias:categoria_crear' %}">Nueva categoria</a></p>
+
+{% if categorias %}
+    <table>
+        <tr>
+            <th>Nombre</th>
+            <th>Descripcion</th>
+            <th>Estado</th>
+            <th>Acciones</th>
+        </tr>
+        {% for categoria in categorias %}
+            <tr>
+                <td>{{ categoria.nombre }}</td>
+                <td>{{ categoria.descripcion|default:'Sin descripcion' }}</td>
+                <td>{% if categoria.activo %}Activa{% else %}Inactiva{% endif %}</td>
+                <td>
+                    <a href="{% url 'categorias:categoria_editar' categoria.id %}">Editar</a>
+                    <a href="{% url 'categorias:categoria_eliminar' categoria.id %}">Eliminar</a>
+                </td>
+            </tr>
+        {% endfor %}
+    </table>
+{% else %}
+    <p>No hay categorias.</p>
+{% endif %}
+
+<p>Mostrando {{ categorias|length }} de {{ total }} categorias.</p>
+{% endblock %}

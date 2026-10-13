@@ -14,18 +14,6 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.CreateModel(
-            name='Categoria',
-            fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('nombre', models.CharField(max_length=255)),
-                ('descripcion', models.TextField(blank=True, null=True)),
-                ('activo', models.BooleanField(default=True)),
-            ],
-            options={
-                'db_table': 'categorias',
-            },
-        ),
-        migrations.CreateModel(
             name='Producto',
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),

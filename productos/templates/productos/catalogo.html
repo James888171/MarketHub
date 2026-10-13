@@ -1,0 +1,56 @@
+{% extends 'productos/base.html' %}
+
+{% block titulo %}Catalogo{% endblock %}
+
+{% block contenido %}
+<h1>Catalogo</h1>
+
+<form method="get">
+    <select name="categoria">
+        <option value="">Todas las categorias</option>
+        {% for categoria in categorias %}
+            <option value="{{ categoria.id }}" {% if categoria_id == categoria.id|stringformat:"s" %}selected{% endif %}>{{ categoria.nombre }}</option>
+        {% endfor %}
+    </select>
+    <button type="submit">Filtrar</button>
+    {% if categoria_id %}
+        <a href="{% url 'productos:catalogo' %}">Limpiar</a>
+    {% endif %}
+</form>
+
+<p><a href="{% url 'ordenes:carrito_ver' %}">Ver mi carrito</a></p>
+
+{% if productos %}
+    <table>
+        <tr>
+            <th>Producto</th>
+            <th>Categoria</th>
+            <th>Precio</th>
+            <th>Disponibles</th>
+            <th>Agregar</th>
+        </tr>
+        {% for producto in productos %}
+            <tr>
+                <td>{{ producto.nombre }}</td>
+                <td>{{ producto.categoria.nombre }}</td>
+                <td>${{ producto.precio }}</td>
+                <td>{{ producto.stock }}</td>
+                <td>
+                    {% if producto.stock > 0 %}
+                        <form method="post" action="{% url 'ordenes:carrito_agregar' %}">
+                            {% csrf_token %}
+                            <input type="hidden" name="producto" value="{{ producto.id }}">
+                            <input type="number" name="cantidad" min="1" max="{{ producto.stock }}" value="1">
+                            <button type="submit">Agregar</button>
+                        </form>
+                    {% else %}
+                        Agotado
+                    {% endif %}
+                </td>
+            </tr>
+        {% endfor %}
+    </table>
+{% else %}
+    <p>No hay productos disponibles.</p>
+{% endif %}
+{% endblock %}

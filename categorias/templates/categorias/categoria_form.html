@@ -1,0 +1,33 @@
+{% extends 'productos/base.html' %}
+
+{% block titulo %}{{ titulo }}{% endblock %}
+
+{% block contenido %}
+<h1>{{ titulo }}</h1>
+
+{% if error %}
+    <p class="error">{{ error }}</p>
+{% endif %}
+
+<form method="post">
+    {% csrf_token %}
+
+    <p>
+        <label for="nombre">Nombre</label><br>
+        <input type="text" id="nombre" name="nombre" value="{{ categoria.nombre|default:'' }}" required>
+    </p>
+
+    <p>
+        <label for="descripcion">Descripcion</label><br>
+        <textarea id="descripcion" name="descripcion">{{ categoria.descripcion|default:'' }}</textarea>
+    </p>
+
+    <p>
+        <input type="checkbox" id="activo" name="activo" {% if categoria.activo %}checked{% endif %}>
+        <label for="activo">Activa</label>
+    </p>
+
+    <button type="submit">{{ boton }}</button>
+    <a href="{% url 'categorias:categoria_listar' %}">Cancelar</a>
+</form>
+{% endblock %}

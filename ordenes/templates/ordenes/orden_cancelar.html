@@ -1,0 +1,16 @@
+{% extends 'productos/base.html' %}
+
+{% block titulo %}Cancelar orden{% endblock %}
+
+{% block contenido %}
+<h1>Cancelar orden</h1>
+
+<p>Seguro que quieres cancelar la orden <b>#{{ orden.id }}</b> por <b>${{ orden.total }}</b>?</p>
+<p>Los productos volveran a estar disponibles en el inventario.</p>
+
+<form method="post">
+    {% csrf_token %}
+    <button type="submit">Si, cancelar orden</button>
+    <a href="{% url 'ordenes:orden_detalle' orden.id %}">Volver</a>
+</form>
+{% endblock %}

@@ -1,0 +1,55 @@
+{% extends 'productos/base.html' %}
+
+{% block titulo %}{{ persona.nombre }}{% endblock %}
+
+{% block contenido %}
+<h1>{{ persona.nombre }}</h1>
+
+{% if error %}
+    <p class="error">{{ error }}</p>
+{% endif %}
+
+<p>Email: {{ persona.email }}</p>
+<p>Rol: {{ persona.rol }}</p>
+<p>Estado: {% if persona.activo %}Activo{% else %}Inactivo{% endif %}</p>
+<p>Direccion:
+    {% if persona.direccion %}
+        {{ persona.direccion.calle }}, {{ persona.direccion.ciudad }}
+    {% else %}
+        Sin direccion
+    {% endif %}
+</p>
+
+<p>
+    <a href="{% url 'usuarios:usuario_editar' persona.id %}">Editar</a>
+    {% if persona.activo and not es_yo %}
+        <a href="{% url 'usuarios:usuario_desactivar' persona.id %}">Desactivar</a>
+    {% endif %}
+    <a href="{% url 'usuarios:usuario_listar' %}">Volver</a>
+</p>
+
+<h3>Ordenes del usuario</h3>
+
+{% if ordenes %}
+    <table>
+        <tr>
+            <th>#</th>
+            <th>Fecha</th>
+            <th>Total</th>
+            <th>Estado</th>
+            <th>Acciones</th>
+        </tr>
+        {% for orden in ordenes %}
+            <tr>
+                <td>{{ orden.id }}</td>
+                <td>{{ orden.fecha|date:"d/m/Y H:i" }}</td>
+                <td>${{ orden.total }}</td>
+                <td>{{ orden.estado }}</td>
+                <td><a href="{% url 'ordenes:orden_detalle' orden.id %}">Ver detalle</a></td>
+            </tr>
+        {% endfor %}
+    </table>
+{% else %}
+    <p>Este usuario no tiene ordenes.</p>
+{% endif %}
+{% endblock %}

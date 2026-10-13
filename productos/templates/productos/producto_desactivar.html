@@ -1,0 +1,16 @@
+{% extends 'productos/base.html' %}
+
+{% block titulo %}Desactivar producto{% endblock %}
+
+{% block contenido %}
+<h1>Desactivar producto</h1>
+
+<p>Seguro que quieres desactivar el producto <b>{{ producto.nombre }}</b>?</p>
+<p>Ya no va a aparecer en el catalogo, pero las ordenes que lo tienen no se pierden.</p>
+
+<form method="post">
+    {% csrf_token %}
+    <button type="submit">Si, desactivar</button>
+    <a href="{% url 'productos:producto_listar' %}">Cancelar</a>
+</form>
+{% endblock %}

@@ -1,0 +1,60 @@
+{% extends 'productos/base.html' %}
+
+{% block titulo %}Mi carrito{% endblock %}
+
+{% block contenido %}
+<h1>Mi carrito</h1>
+
+{% if error %}
+    <p class="error">{{ error }}</p>
+{% endif %}
+
+<p><a href="{% url 'productos:catalogo' %}">Seguir comprando</a></p>
+
+{% if carrito.items %}
+    <form method="post" action="{% url 'ordenes:carrito_actualizar' %}">
+        {% csrf_token %}
+        <table>
+            <tr>
+                <th>Producto</th>
+                <th>Precio</th>
+                <th>Cantidad</th>
+                <th>Subtotal</th>
+                <th>Acciones</th>
+            </tr>
+            {% for item in carrito.items %}
+                <tr>
+                    <td>{{ item.producto.nombre }}</td>
+                    <td>${{ item.producto.precio }}</td>
+                    <td><input type="number" name="cantidad_{{ forloop.counter0 }}" min="0" value="{{ item.cantidad }}"></td>
+                    <td>${{ item.subtotal }}</td>
+                    <td><a href="{% url 'ordenes:carrito_quitar' forloop.counter0 %}">Quitar</a></td>
+                </tr>
+            {% endfor %}
+        </table>
+        <p><button type="submit">Actualizar cantidades</button></p>
+    </form>
+
+    <p>Total: <b>${{ total }}</b></p>
+
+    <h3>Direccion de envio</h3>
+
+    <form method="post" action="{% url 'ordenes:carrito_finalizar' %}">
+        {% csrf_token %}
+
+        <p>
+            <label for="calle">Calle</label><br>
+            <input type="text" id="calle" name="calle" value="{{ direccion.calle|default:'' }}" required>
+        </p>
+
+        <p>
+            <label for="ciudad">Ciudad</label><br>
+            <input type="text" id="ciudad" name="ciudad" value="{{ direccion.ciudad|default:'' }}" required>
+        </p>
+
+        <button type="submit">Finalizar compra</button>
+    </form>
+{% else %}
+    <p>Tu carrito esta vacio.</p>
+{% endif %}
+{% endblock %}
