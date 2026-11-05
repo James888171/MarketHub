@@ -1,4 +1,5 @@
 from djongo import models
+from django.db import models
 
 class Direccion(models.Model):
     calle = models.CharField(max_length=255)

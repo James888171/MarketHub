@@ -11,4 +11,4 @@ COPY . .
 
 EXPOSE 8000
 
-CMD ["sh", "-c", "python manage.py migrate --fake-initial && python manage.py runserver 0.0.0.0:8000"]
+CMD ["sh", "-c", "python manage.py migrate --fake-initial && python datos_prueba.py && python manage.py runserver 0.0.0.0:8000"]
