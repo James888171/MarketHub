@@ -1,10 +1,10 @@
-from datetime import datetime
-
+from django.core.exceptions import ObjectDoesNotExist
+from django.db import DatabaseError
 from django.shortcuts import render, redirect
-from MarketHub.conexion import db, siguiente_id
+from productos.models import Producto
 from usuarios.views import usuario_actual
 from .forms import FormularioDireccion
-from .models import Orden
+from .models import CarritoCompras, Orden
 
 
 def nombre_estado(estado):
@@ -22,75 +22,108 @@ def estado_valido(estado):
 
 
 def se_puede_cancelar(orden):
-    return orden['estado'] == 'pendiente' or orden['estado'] == 'pagado'
+    return orden.estado == 'pendiente' or orden.estado == 'pagado'
+
+
+def es_dueno(usuario, orden):
+    return usuario.rol == 'admin' or orden.usuario['usuario_id'] == usuario.id
+
+
+def buscar_producto(producto_id):
+    try:
+        return Producto.objects.get(id=producto_id)
+    except ObjectDoesNotExist:
+        return None
+
+
+def buscar_orden(id):
+    try:
+        return Orden.objects.get(id=id)
+    except ObjectDoesNotExist:
+        return None
 
 
 def obtener_carrito(usuario):
-    carrito = db.carritocompras.find_one({'usuario._id': usuario['_id']})
+    carrito = CarritoCompras.objects.filter(usuario={'usuario_id': usuario.id}).first()
     if not carrito:
-        carrito = {
-            'id': siguiente_id(db.carritocompras),
-            'usuario': {
-                '_id': usuario['_id'],
-                'email': usuario['email'],
-                'nombre': usuario['nombre'],
+        carrito = CarritoCompras.objects.create(
+            usuario={
+                'usuario_id': usuario.id,
+                'email': usuario.email,
+                'nombre': usuario.nombre,
             },
-            'items': [],
-            'actualizado_en': datetime.now(),
-        }
-        db.carritocompras.insert_one(carrito)
+            items=[],
+        )
     return carrito
 
 
 def guardar_items(carrito, items):
-    db.carritocompras.update_one(
-        {'_id': carrito['_id']},
-        {'$set': {'items': items, 'actualizado_en': datetime.now()}}
-    )
+    carrito.items = items
+    carrito.save()
 
 
 def devolver_stock(orden):
-    for item in orden['items']:
-        db.productos.update_one(
-            {'_id': item['producto']['_id']},
-            {'$inc': {'stock': item['cantidad']}}
-        )
+    for item in orden.items:
+        producto = buscar_producto(item['producto']['producto_id'])
+        if producto:
+            producto.stock = producto.stock + item['cantidad']
+            producto.save()
+
+
+def calcular_total(carrito):
+    total = 0
+    for item in carrito.items:
+        item['subtotal'] = item['producto']['precio'] * item['cantidad']
+        total = total + item['subtotal']
+    return total
 
 
 def mostrar_carrito(request, usuario, error):
     carrito = obtener_carrito(usuario)
 
-    total = 0
-    for item in carrito['items']:
-        item['subtotal'] = item['producto']['precio'] * item['cantidad']
-        total = total + item['subtotal']
-
-    direccion = {}
-    if usuario.get('direccion'):
-        direccion = usuario['direccion']
-
     contexto = {
         'carrito': carrito,
-        'total': total,
-        'direccion': direccion,
+        'total': calcular_total(carrito),
         'error': error,
     }
     return render(request, 'ordenes/carrito.html', contexto)
 
 
+def mostrar_confirmar(request, usuario, error, direccion):
+    carrito = obtener_carrito(usuario)
+
+    contexto = {
+        'carrito': carrito,
+        'total': calcular_total(carrito),
+        'formulario': FormularioDireccion(initial=direccion),
+        'error': error,
+    }
+    return render(request, 'ordenes/carrito_confirmar.html', contexto)
+
+
 def mostrar_detalle(request, usuario, orden, error):
-    orden['estado_nombre'] = nombre_estado(orden['estado'])
-    for item in orden['items']:
+    orden.estado_nombre = nombre_estado(orden.estado)
+    for item in orden.items:
         item['subtotal'] = item['precio_unitario'] * item['cantidad']
 
     contexto = {
-        'es_admin': usuario['rol'] == 'admin',
+        'es_admin': usuario.rol == 'admin',
         'orden': orden,
-        'estados': Orden.ESTADOS,
         'puede_cancelar': se_puede_cancelar(orden),
         'error': error,
     }
     return render(request, 'ordenes/orden_detalle.html', contexto)
+
+
+def mostrar_estado(request, orden, error):
+    orden.estado_nombre = nombre_estado(orden.estado)
+
+    contexto = {
+        'orden': orden,
+        'estados': Orden.ESTADOS,
+        'error': error,
+    }
+    return render(request, 'ordenes/orden_estado.html', contexto)
 
 
 def carrito_ver(request):
@@ -114,9 +147,9 @@ def carrito_agregar(request):
 
     producto = None
     if producto_id.isdigit():
-        producto = db.productos.find_one({'id': int(producto_id), 'activo': True})
+        producto = buscar_producto(int(producto_id))
 
-    if not producto:
+    if not producto or not producto.activo:
         return mostrar_carrito(request, usuario, 'Debes seleccionar un producto.')
 
     if not cantidad.isdigit() or int(cantidad) == 0:
@@ -124,24 +157,24 @@ def carrito_agregar(request):
 
     cantidad = int(cantidad)
     carrito = obtener_carrito(usuario)
-    items = carrito['items']
+    items = carrito.items
 
     encontrado = False
     for item in items:
-        if item['producto']['_id'] == producto['_id']:
+        if item['producto']['producto_id'] == producto.id:
             item['cantidad'] = item['cantidad'] + cantidad
             cantidad = item['cantidad']
             encontrado = True
 
-    if cantidad > producto['stock']:
-        return mostrar_carrito(request, usuario, 'Solo hay ' + str(producto['stock']) + ' unidades de ' + producto['nombre'] + '.')
+    if cantidad > producto.stock:
+        return mostrar_carrito(request, usuario, 'Solo hay ' + str(producto.stock) + ' unidades de ' + producto.nombre + '.')
 
     if not encontrado:
         items.append({
             'producto': {
-                '_id': producto['_id'],
-                'nombre': producto['nombre'],
-                'precio': producto['precio'],
+                'producto_id': producto.id,
+                'nombre': producto.nombre,
+                'precio': producto.precio,
             },
             'cantidad': cantidad,
         })
@@ -162,7 +195,7 @@ def carrito_actualizar(request):
     items = []
     posicion = 0
 
-    for item in carrito['items']:
+    for item in carrito.items:
         cantidad = request.POST.get('cantidad_' + str(posicion), '').strip()
         posicion = posicion + 1
 
@@ -173,9 +206,9 @@ def carrito_actualizar(request):
         if cantidad == 0:
             continue
 
-        producto = db.productos.find_one({'_id': item['producto']['_id']})
-        if producto and cantidad > producto['stock']:
-            return mostrar_carrito(request, usuario, 'Solo hay ' + str(producto['stock']) + ' unidades de ' + producto['nombre'] + '.')
+        producto = buscar_producto(item['producto']['producto_id'])
+        if producto and cantidad > producto.stock:
+            return mostrar_carrito(request, usuario, 'Solo hay ' + str(producto.stock) + ' unidades de ' + producto.nombre + '.')
 
         item['cantidad'] = cantidad
         items.append(item)
@@ -190,7 +223,7 @@ def carrito_quitar(request, posicion):
         return redirect('usuarios:ingresar')
 
     carrito = obtener_carrito(usuario)
-    items = carrito['items']
+    items = carrito.items
     if posicion < len(items):
         items.pop(posicion)
         guardar_items(carrito, items)
@@ -203,24 +236,11 @@ def carrito_confirmar(request):
     if not usuario:
         return redirect('usuarios:ingresar')
 
-    carrito = obtener_carrito(usuario)
-
-    total = 0
-    for item in carrito['items']:
-        item['subtotal'] = item['producto']['precio'] * item['cantidad']
-        total = total + item['subtotal']
-
     direccion = {}
-    if usuario.get('direccion'):
-        direccion = usuario['direccion']
+    if usuario.direccion:
+        direccion = usuario.direccion
 
-    contexto = {
-        'carrito': carrito,
-        'total': total,
-        'formulario': FormularioDireccion(initial=direccion),
-        'error': None,
-    }
-    return render(request, 'ordenes/carrito_confirmar.html', contexto)
+    return mostrar_confirmar(request, usuario, None, direccion)
 
 
 def carrito_finalizar(request):
@@ -234,55 +254,57 @@ def carrito_finalizar(request):
     carrito = obtener_carrito(usuario)
     calle = request.POST.get('calle', '').strip()
     ciudad = request.POST.get('ciudad', '').strip()
+    direccion = {'calle': calle, 'ciudad': ciudad}
 
-    if not carrito['items']:
-        return mostrar_carrito(request, usuario, 'El carrito esta vacio.')
+    if not carrito.items:
+        return mostrar_confirmar(request, usuario, 'El carrito esta vacio.', direccion)
 
     if not calle or not ciudad:
-        return mostrar_carrito(request, usuario, 'La direccion de envio esta incompleta.')
+        return mostrar_confirmar(request, usuario, 'La direccion de envio esta incompleta.', direccion)
 
     items = []
+    productos = []
     total = 0
-    for item in carrito['items']:
-        producto = db.productos.find_one({'_id': item['producto']['_id']})
+    for item in carrito.items:
+        producto = buscar_producto(item['producto']['producto_id'])
 
-        if not producto or not producto['activo']:
-            return mostrar_carrito(request, usuario, 'El producto ' + item['producto']['nombre'] + ' ya no esta disponible.')
+        if not producto or not producto.activo:
+            return mostrar_confirmar(request, usuario, 'El producto ' + item['producto']['nombre'] + ' ya no esta disponible.', direccion)
 
-        if item['cantidad'] > producto['stock']:
-            return mostrar_carrito(request, usuario, 'Solo hay ' + str(producto['stock']) + ' unidades de ' + producto['nombre'] + '.')
+        if item['cantidad'] > producto.stock:
+            return mostrar_confirmar(request, usuario, 'Solo hay ' + str(producto.stock) + ' unidades de ' + producto.nombre + '.', direccion)
 
         items.append({
             'producto': {
-                '_id': producto['_id'],
-                'nombre': producto['nombre'],
-                'precio': producto['precio'],
+                'producto_id': producto.id,
+                'nombre': producto.nombre,
+                'precio': producto.precio,
             },
-            'precio_unitario': producto['precio'],
+            'precio_unitario': producto.precio,
             'cantidad': item['cantidad'],
         })
-        total = total + producto['precio'] * item['cantidad']
+        productos.append(producto)
+        total = total + producto.precio * item['cantidad']
 
-    orden_id = siguiente_id(db.ordenes)
-
-    db.ordenes.insert_one({
-        'id': orden_id,
-        'usuario': carrito['usuario'],
-        'fecha': datetime.now(),
-        'estado': 'pendiente',
-        'items': items,
-        'total': total,
-        'direccion_envio': {'calle': calle, 'ciudad': ciudad},
-    })
-
-    for item in items:
-        db.productos.update_one(
-            {'_id': item['producto']['_id']},
-            {'$inc': {'stock': -item['cantidad']}}
+    try:
+        orden = Orden.objects.create(
+            usuario=carrito.usuario,
+            estado='pendiente',
+            items=items,
+            total=total,
+            direccion_envio=direccion,
         )
+    except DatabaseError:
+        return mostrar_confirmar(request, usuario, 'Los datos no cumplen con la validacion de la base de datos.', direccion)
+
+    posicion = 0
+    for producto in productos:
+        producto.stock = producto.stock - items[posicion]['cantidad']
+        producto.save()
+        posicion = posicion + 1
 
     guardar_items(carrito, [])
-    return redirect('ordenes:orden_detalle', id=orden_id)
+    return redirect('ordenes:orden_detalle', id=orden.id)
 
 
 def orden_listar(request):
@@ -290,28 +312,30 @@ def orden_listar(request):
     if not usuario:
         return redirect('usuarios:ingresar')
 
-    es_admin = usuario['rol'] == 'admin'
+    es_admin = usuario.rol == 'admin'
     busqueda = request.GET.get('q', '').strip().lower()
     estado = request.GET.get('estado', '')
 
-    filtro = {}
+    ordenes = Orden.objects.all()
     if not es_admin:
-        filtro['usuario._id'] = usuario['_id']
-    if estado:
-        filtro['estado'] = estado
+        ordenes = ordenes.filter(usuario={'usuario_id': usuario.id})
     if busqueda and es_admin:
-        filtro['usuario.email'] = busqueda
+        ordenes = ordenes.filter(usuario={'email': busqueda})
+    if estado:
+        ordenes = ordenes.filter(estado=estado)
+    ordenes = ordenes.order_by('-fecha')
 
-    ordenes = list(db.ordenes.find(filtro).sort('fecha', -1))
+    lista = []
     for orden in ordenes:
-        orden['estado_nombre'] = nombre_estado(orden['estado'])
-        orden['cantidad_productos'] = 0
-        for item in orden['items']:
-            orden['cantidad_productos'] = orden['cantidad_productos'] + item['cantidad']
+        orden.estado_nombre = nombre_estado(orden.estado)
+        orden.cantidad_productos = 0
+        for item in orden.items:
+            orden.cantidad_productos = orden.cantidad_productos + item['cantidad']
+        lista.append(orden)
 
     contexto = {
         'es_admin': es_admin,
-        'ordenes': ordenes,
+        'ordenes': lista,
         'busqueda': busqueda,
         'estado': estado,
         'estados': Orden.ESTADOS,
@@ -324,11 +348,8 @@ def orden_detalle(request, id):
     if not usuario:
         return redirect('usuarios:ingresar')
 
-    orden = db.ordenes.find_one({'id': id})
-    if not orden:
-        return redirect('ordenes:orden_listar')
-
-    if usuario['rol'] != 'admin' and orden['usuario']['_id'] != usuario['_id']:
+    orden = buscar_orden(id)
+    if not orden or not es_dueno(usuario, orden):
         return redirect('ordenes:orden_listar')
 
     return mostrar_detalle(request, usuario, orden, None)
@@ -339,28 +360,33 @@ def orden_cambiar_estado(request, id):
     if not usuario:
         return redirect('usuarios:ingresar')
 
-    if usuario['rol'] != 'admin':
+    if usuario.rol != 'admin':
         return redirect('ordenes:carrito_ver')
 
-    orden = db.ordenes.find_one({'id': id})
+    orden = buscar_orden(id)
     if not orden:
         return redirect('ordenes:orden_listar')
 
+    if orden.estado == 'cancelado':
+        return mostrar_detalle(request, usuario, orden, 'Una orden cancelada no se puede modificar.')
+
     if request.method != 'POST':
-        return redirect('ordenes:orden_detalle', id=id)
+        return mostrar_estado(request, orden, None)
 
     estado = request.POST.get('estado', '')
 
     if not estado_valido(estado):
-        return mostrar_detalle(request, usuario, orden, 'El estado no es valido.')
-
-    if orden['estado'] == 'cancelado':
-        return mostrar_detalle(request, usuario, orden, 'Una orden cancelada no se puede modificar.')
+        return mostrar_estado(request, orden, 'El estado no es valido.')
 
     if estado == 'cancelado' and not se_puede_cancelar(orden):
-        return mostrar_detalle(request, usuario, orden, 'Solo se pueden cancelar ordenes pendientes o pagadas.')
+        return mostrar_estado(request, orden, 'Solo se pueden cancelar ordenes pendientes o pagadas.')
 
-    db.ordenes.update_one({'_id': orden['_id']}, {'$set': {'estado': estado}})
+    orden.estado = estado
+    try:
+        orden.save()
+    except DatabaseError:
+        return mostrar_estado(request, orden, 'Los datos no cumplen con la validacion de la base de datos.')
+
     if estado == 'cancelado':
         devolver_stock(orden)
 
@@ -372,40 +398,17 @@ def orden_cancelar(request, id):
     if not usuario:
         return redirect('usuarios:ingresar')
 
-    orden = db.ordenes.find_one({'id': id})
-    if not orden:
-        return redirect('ordenes:orden_listar')
-
-    if usuario['rol'] != 'admin' and orden['usuario']['_id'] != usuario['_id']:
+    orden = buscar_orden(id)
+    if not orden or not es_dueno(usuario, orden):
         return redirect('ordenes:orden_listar')
 
     if not se_puede_cancelar(orden):
         return mostrar_detalle(request, usuario, orden, 'Solo se pueden cancelar ordenes pendientes o pagadas.')
 
     if request.method == 'POST':
-        db.ordenes.update_one({'_id': orden['_id']}, {'$set': {'estado': 'cancelado'}})
+        orden.estado = 'cancelado'
+        orden.save()
         devolver_stock(orden)
         return redirect('ordenes:orden_detalle', id=id)
 
     return render(request, 'ordenes/orden_cancelar.html', {'orden': orden})
-
-
-def orden_eliminar(request, id):
-    usuario = usuario_actual(request)
-    if not usuario:
-        return redirect('usuarios:ingresar')
-    if usuario['rol'] != 'admin':
-        return redirect('ordenes:carrito_ver')
-
-    orden = db.ordenes.find_one({'id': id})
-    if not orden:
-        return redirect('ordenes:orden_listar')
-
-    if orden['estado'] != 'cancelado':
-        return mostrar_detalle(request, usuario, orden, 'Solo se pueden eliminar ordenes canceladas.')
-
-    if request.method == 'POST':
-        db.ordenes.delete_one({'_id': orden['_id']})
-        return redirect('ordenes:orden_listar')
-
-    return render(request, 'ordenes/orden_eliminar.html', {'orden': orden})

@@ -27,7 +27,7 @@ En todos los casos se valida que haya unidades suficientes, para que no se pueda
 Funciones de las ordenes:
 - Listar las ordenes. El cliente solo puede ver sus propias ordenes, mientras que el administrador ve las de todos los clientes y puede buscarlas por email. Tambien se pueden filtrar por estado.
 - Ver el detalle de una orden, con los productos, cantidades, precios, total, direccion de envio y estado.
-- Cambiar el estado de la orden (pendiente, pagado, enviado, entregado o cancelado). Esto solo lo puede hacer el administrador.
+- Cambiar el estado de la orden (pendiente, pagado, enviado, entregado o cancelado) desde su propia pantalla. Esto solo lo puede hacer el administrador, y si la pasa a cancelado los productos vuelven al inventario.
 - Cancelar una orden.
 
 Se decidio que las ordenes no se eliminan sino que se cancelan, ya que no tiene sentido borrar un pedido que ya se realizo y asi queda el registro. Solo se pueden cancelar las ordenes pendientes o pagadas, porque si ya fue enviada no se puede cancelar. Cuando una orden se cancela los productos vuelven al inventario.
@@ -37,5 +37,5 @@ Ademas, la orden guarda el precio que tenia cada producto al momento de la compr
 Operaciones CRUD de ordenes:
 - Crear: al finalizar la compra desde el carrito.
 - Consultar: lista de ordenes y detalle de cada orden.
-- Actualizar: cambio de estado de la orden.
+- Actualizar: cambio de estado de la orden en la pantalla de cambiar estado.
 - Eliminar: cancelacion de la orden.

@@ -1,36 +1,53 @@
+from django.core.exceptions import ObjectDoesNotExist
+from django.db import DatabaseError
 from django.shortcuts import render, redirect
-from MarketHub.conexion import db, siguiente_id
+from categorias.models import Categoria
 from usuarios.views import usuario_actual
 from .forms import FormularioProducto
+from .models import Producto
+
+
+def categorias_activas():
+    lista = []
+    for categoria in Categoria.objects.order_by('nombre'):
+        if categoria.activo:
+            lista.append(categoria)
+    return lista
+
+
+def buscar_categoria(categoria_id):
+    if not categoria_id.isdigit():
+        return None
+    try:
+        return Categoria.objects.get(id=int(categoria_id))
+    except ObjectDoesNotExist:
+        return None
 
 
 def producto_listar(request):
     usuario = usuario_actual(request)
     if not usuario:
         return redirect('usuarios:ingresar')
-    if usuario['rol'] != 'admin':
+    if usuario.rol != 'admin':
         return redirect('productos:catalogo')
 
     busqueda = request.GET.get('q', '').strip()
     categoria_id = request.GET.get('categoria', '')
 
-    filtro = {}
+    productos = Producto.objects.all()
     if busqueda:
-        filtro['nombre'] = busqueda
-    if categoria_id.isdigit():
-        categoria = db.categorias.find_one({'id': int(categoria_id)})
-        if categoria:
-            filtro['categoria._id'] = categoria['_id']
-
-    productos = list(db.productos.find(filtro).sort('nombre', 1))
-    categorias = list(db.categorias.find().sort('nombre', 1))
+        productos = productos.filter(nombre=busqueda)
+    categoria = buscar_categoria(categoria_id)
+    if categoria:
+        productos = productos.filter(categoria={'categoria_id': categoria.id})
+    productos = productos.order_by('nombre')
 
     contexto = {
         'productos': productos,
-        'categorias': categorias,
+        'categorias': Categoria.objects.order_by('nombre'),
         'busqueda': busqueda,
         'categoria_id': categoria_id,
-        'total': db.productos.count_documents({}),
+        'total': Producto.objects.count(),
     }
     return render(request, 'productos/producto_lista.html', contexto)
 
@@ -39,12 +56,11 @@ def producto_crear(request):
     usuario = usuario_actual(request)
     if not usuario:
         return redirect('usuarios:ingresar')
-    if usuario['rol'] != 'admin':
+    if usuario.rol != 'admin':
         return redirect('productos:catalogo')
 
     error = None
     producto = {'nombre': '', 'precio': '', 'stock': '', 'categoria_id': '', 'activo': True}
-    categorias = list(db.categorias.find({'activo': True}).sort('nombre', 1))
 
     if request.method == 'POST':
         nombre = request.POST.get('nombre', '').strip()
@@ -54,9 +70,7 @@ def producto_crear(request):
         activo = request.POST.get('activo') == 'on'
         producto = {'nombre': nombre, 'precio': precio, 'stock': stock, 'categoria_id': categoria_id, 'activo': activo}
 
-        categoria = None
-        if categoria_id.isdigit():
-            categoria = db.categorias.find_one({'id': int(categoria_id)})
+        categoria = buscar_categoria(categoria_id)
 
         if not nombre:
             error = 'El nombre es obligatorio.'
@@ -66,27 +80,29 @@ def producto_crear(request):
             error = 'El stock debe ser un numero.'
         elif not categoria:
             error = 'Debes seleccionar una categoria.'
-        elif db.productos.find_one({'nombre': nombre}):
+        elif Producto.objects.filter(nombre=nombre).first():
             error = 'Ya existe un producto con ese nombre.'
         else:
-            db.productos.insert_one({
-                'id': siguiente_id(db.productos),
-                'nombre': nombre,
-                'precio': int(precio),
-                'stock': int(stock),
-                'categoria': {
-                    '_id': categoria['_id'],
-                    'nombre': categoria['nombre'],
-                    'descripcion': categoria.get('descripcion'),
-                },
-                'activo': activo,
-            })
-            return redirect('productos:producto_listar')
+            try:
+                Producto.objects.create(
+                    nombre=nombre,
+                    precio=int(precio),
+                    stock=int(stock),
+                    categoria={
+                        'categoria_id': categoria.id,
+                        'nombre': categoria.nombre,
+                        'descripcion': categoria.descripcion,
+                    },
+                    activo=activo,
+                )
+                return redirect('productos:producto_listar')
+            except DatabaseError:
+                error = 'Los datos no cumplen con la validacion de la base de datos.'
 
     contexto = {
         'formulario': FormularioProducto(initial=producto),
         'producto': producto,
-        'categorias': categorias,
+        'categorias': categorias_activas(),
         'error': error,
         'titulo': 'Nuevo producto',
         'boton': 'Crear producto',
@@ -98,27 +114,22 @@ def producto_editar(request, id):
     usuario = usuario_actual(request)
     if not usuario:
         return redirect('usuarios:ingresar')
-    if usuario['rol'] != 'admin':
+    if usuario.rol != 'admin':
         return redirect('productos:catalogo')
 
-    original = db.productos.find_one({'id': id})
-    if not original:
+    try:
+        original = Producto.objects.get(id=id)
+    except ObjectDoesNotExist:
         return redirect('productos:producto_listar')
 
     error = None
-    categorias = list(db.categorias.find({'activo': True}).sort('nombre', 1))
-
-    categoria_id = ''
-    for c in db.categorias.find():
-        if c['_id'] == original['categoria']['_id']:
-            categoria_id = str(c['id'])
 
     producto = {
-        'nombre': original['nombre'],
-        'precio': original['precio'],
-        'stock': original['stock'],
-        'categoria_id': categoria_id,
-        'activo': original['activo'],
+        'nombre': original.nombre,
+        'precio': original.precio,
+        'stock': original.stock,
+        'categoria_id': str(original.categoria['categoria_id']),
+        'activo': original.activo,
     }
 
     if request.method == 'POST':
@@ -129,11 +140,8 @@ def producto_editar(request, id):
         activo = request.POST.get('activo') == 'on'
         producto = {'nombre': nombre, 'precio': precio, 'stock': stock, 'categoria_id': categoria_id, 'activo': activo}
 
-        categoria = None
-        if categoria_id.isdigit():
-            categoria = db.categorias.find_one({'id': int(categoria_id)})
-
-        repetido = db.productos.find_one({'nombre': nombre})
+        categoria = buscar_categoria(categoria_id)
+        repetido = Producto.objects.filter(nombre=nombre).first()
 
         if not nombre:
             error = 'El nombre es obligatorio.'
@@ -143,29 +151,29 @@ def producto_editar(request, id):
             error = 'El stock debe ser un numero.'
         elif not categoria:
             error = 'Debes seleccionar una categoria.'
-        elif repetido and repetido['id'] != id:
+        elif repetido and repetido.id != id:
             error = 'Ya existe otro producto con ese nombre.'
         else:
-            db.productos.update_one(
-                {'id': id},
-                {'$set': {
-                    'nombre': nombre,
-                    'precio': int(precio),
-                    'stock': int(stock),
-                    'categoria': {
-                        '_id': categoria['_id'],
-                        'nombre': categoria['nombre'],
-                        'descripcion': categoria.get('descripcion'),
-                    },
-                    'activo': activo,
-                }}
-            )
-            return redirect('productos:producto_listar')
+            original.nombre = nombre
+            original.precio = int(precio)
+            original.stock = int(stock)
+            original.categoria = {
+                'categoria_id': categoria.id,
+                'nombre': categoria.nombre,
+                'descripcion': categoria.descripcion,
+            }
+            original.activo = activo
+
+            try:
+                original.save()
+                return redirect('productos:producto_listar')
+            except DatabaseError:
+                error = 'Los datos no cumplen con la validacion de la base de datos.'
 
     contexto = {
         'formulario': FormularioProducto(initial=producto),
         'producto': producto,
-        'categorias': categorias,
+        'categorias': categorias_activas(),
         'error': error,
         'titulo': 'Editar producto',
         'boton': 'Guardar cambios',
@@ -177,11 +185,12 @@ def producto_detalle(request, id):
     usuario = usuario_actual(request)
     if not usuario:
         return redirect('usuarios:ingresar')
-    if usuario['rol'] != 'admin':
+    if usuario.rol != 'admin':
         return redirect('productos:catalogo')
 
-    producto = db.productos.find_one({'id': id})
-    if not producto:
+    try:
+        producto = Producto.objects.get(id=id)
+    except ObjectDoesNotExist:
         return redirect('productos:producto_listar')
 
     return render(request, 'productos/producto_detalle.html', {'producto': producto})
@@ -191,15 +200,17 @@ def producto_desactivar(request, id):
     usuario = usuario_actual(request)
     if not usuario:
         return redirect('usuarios:ingresar')
-    if usuario['rol'] != 'admin':
+    if usuario.rol != 'admin':
         return redirect('productos:catalogo')
 
-    producto = db.productos.find_one({'id': id})
-    if not producto:
+    try:
+        producto = Producto.objects.get(id=id)
+    except ObjectDoesNotExist:
         return redirect('productos:producto_listar')
 
     if request.method == 'POST':
-        db.productos.update_one({'id': id}, {'$set': {'activo': False}})
+        producto.activo = False
+        producto.save()
         return redirect('productos:producto_listar')
 
     return render(request, 'productos/producto_desactivar.html', {'producto': producto})
@@ -212,18 +223,20 @@ def catalogo(request):
 
     categoria_id = request.GET.get('categoria', '')
 
-    filtro = {'activo': True}
-    if categoria_id.isdigit():
-        categoria = db.categorias.find_one({'id': int(categoria_id)})
-        if categoria:
-            filtro['categoria._id'] = categoria['_id']
+    todos = Producto.objects.all()
+    categoria = buscar_categoria(categoria_id)
+    if categoria:
+        todos = todos.filter(categoria={'categoria_id': categoria.id})
+    todos = todos.order_by('nombre')
 
-    productos = list(db.productos.find(filtro).sort('nombre', 1))
-    categorias = list(db.categorias.find({'activo': True}).sort('nombre', 1))
+    productos = []
+    for producto in todos:
+        if producto.activo:
+            productos.append(producto)
 
     contexto = {
         'productos': productos,
-        'categorias': categorias,
+        'categorias': categorias_activas(),
         'categoria_id': categoria_id,
     }
     return render(request, 'productos/catalogo.html', contexto)

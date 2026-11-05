@@ -1,6 +1,8 @@
 from django.contrib.auth.hashers import check_password, make_password
+from django.core.exceptions import ObjectDoesNotExist
+from django.db import DatabaseError
 from django.shortcuts import render, redirect
-from MarketHub.conexion import db, siguiente_id
+from ordenes.models import Orden
 from .forms import FormularioIngresar, FormularioRegistro, FormularioUsuario
 from .models import Usuario
 
@@ -9,11 +11,17 @@ def usuario_actual(request):
     usuario_id = request.session.get('usuario_id')
     if not usuario_id:
         return None
-    return db.usuarios.find_one({'id': usuario_id, 'activo': True})
+    try:
+        usuario = Usuario.objects.get(id=usuario_id)
+    except ObjectDoesNotExist:
+        return None
+    if not usuario.activo:
+        return None
+    return usuario
 
 
 def pagina_inicio(usuario):
-    if usuario['rol'] == 'admin':
+    if usuario.rol == 'admin':
         return redirect('categorias:categoria_listar')
     return redirect('productos:catalogo')
 
@@ -30,18 +38,18 @@ def ingresar(request):
         email = request.POST.get('email', '').strip().lower()
         password = request.POST.get('password', '')
 
-        usuario = db.usuarios.find_one({'email': email})
+        usuario = Usuario.objects.filter(email=email).first()
 
         if not email or not password:
             error = 'Escribe tu email y tu contraseña.'
-        elif not usuario or not check_password(password, usuario['password']):
+        elif not usuario or not check_password(password, usuario.password):
             error = 'Email o contraseña incorrectos.'
-        elif not usuario['activo']:
+        elif not usuario.activo:
             error = 'Tu cuenta esta desactivada.'
         else:
-            request.session['usuario_id'] = usuario['id']
-            request.session['usuario_nombre'] = usuario['nombre']
-            request.session['usuario_rol'] = usuario['rol']
+            request.session['usuario_id'] = usuario.id
+            request.session['usuario_nombre'] = usuario.nombre
+            request.session['usuario_rol'] = usuario.rol
             return pagina_inicio(usuario)
 
     formulario = FormularioIngresar(initial={'email': email})
@@ -73,27 +81,28 @@ def registrarse(request):
             error = 'La contraseña debe tener al menos 6 caracteres.'
         elif password != confirmar:
             error = 'Las contraseñas no coinciden.'
-        elif db.usuarios.find_one({'email': email}):
+        elif Usuario.objects.filter(email=email).first():
             error = 'Ya existe una cuenta con ese email.'
         else:
             direccion = None
             if calle and ciudad:
                 direccion = {'calle': calle, 'ciudad': ciudad}
 
-            usuario = {
-                'id': siguiente_id(db.usuarios),
-                'email': email,
-                'password': make_password(password),
-                'nombre': nombre,
-                'rol': 'cliente',
-                'activo': True,
-                'direccion': direccion,
-            }
-            db.usuarios.insert_one(usuario)
-            request.session['usuario_id'] = usuario['id']
-            request.session['usuario_nombre'] = usuario['nombre']
-            request.session['usuario_rol'] = usuario['rol']
-            return pagina_inicio(usuario)
+            try:
+                usuario = Usuario.objects.create(
+                    email=email,
+                    password=make_password(password),
+                    nombre=nombre,
+                    rol='cliente',
+                    activo=True,
+                    direccion=direccion,
+                )
+                request.session['usuario_id'] = usuario.id
+                request.session['usuario_nombre'] = usuario.nombre
+                request.session['usuario_rol'] = usuario.rol
+                return pagina_inicio(usuario)
+            except DatabaseError:
+                error = 'Los datos no cumplen con la validacion de la base de datos.'
 
     formulario = FormularioRegistro(initial=datos)
     return render(request, 'usuarios/registro.html', {'error': error, 'formulario': formulario})
@@ -105,12 +114,12 @@ def salir(request):
 
 
 def mostrar_usuario(request, usuario, persona, error):
-    ordenes = list(db.ordenes.find({'usuario._id': persona['_id']}).sort('fecha', -1))
+    ordenes = Orden.objects.filter(usuario={'usuario_id': persona.id}).order_by('-fecha')
 
     contexto = {
         'persona': persona,
         'ordenes': ordenes,
-        'es_yo': persona['id'] == usuario['id'],
+        'es_yo': persona.id == usuario.id,
         'error': error,
     }
     return render(request, 'usuarios/usuario_detalle.html', contexto)
@@ -120,26 +129,25 @@ def usuario_listar(request):
     usuario = usuario_actual(request)
     if not usuario:
         return redirect('usuarios:ingresar')
-    if usuario['rol'] != 'admin':
+    if usuario.rol != 'admin':
         return redirect('productos:catalogo')
 
     busqueda = request.GET.get('q', '').strip().lower()
     rol = request.GET.get('rol', '')
 
-    filtro = {}
+    usuarios = Usuario.objects.all()
     if busqueda:
-        filtro['email'] = busqueda
+        usuarios = usuarios.filter(email=busqueda)
     if rol:
-        filtro['rol'] = rol
-
-    usuarios = list(db.usuarios.find(filtro).sort('nombre', 1))
+        usuarios = usuarios.filter(rol=rol)
+    usuarios = usuarios.order_by('nombre')
 
     contexto = {
         'usuarios': usuarios,
         'busqueda': busqueda,
         'rol': rol,
         'roles': Usuario.ROL_CHOICES,
-        'total': db.usuarios.count_documents({}),
+        'total': Usuario.objects.count(),
     }
     return render(request, 'usuarios/usuario_lista.html', contexto)
 
@@ -148,11 +156,12 @@ def usuario_detalle(request, id):
     usuario = usuario_actual(request)
     if not usuario:
         return redirect('usuarios:ingresar')
-    if usuario['rol'] != 'admin':
+    if usuario.rol != 'admin':
         return redirect('productos:catalogo')
 
-    persona = db.usuarios.find_one({'id': id})
-    if not persona:
+    try:
+        persona = Usuario.objects.get(id=id)
+    except ObjectDoesNotExist:
         return redirect('usuarios:usuario_listar')
 
     return mostrar_usuario(request, usuario, persona, None)
@@ -162,26 +171,27 @@ def usuario_editar(request, id):
     usuario = usuario_actual(request)
     if not usuario:
         return redirect('usuarios:ingresar')
-    if usuario['rol'] != 'admin':
+    if usuario.rol != 'admin':
         return redirect('productos:catalogo')
 
-    persona = db.usuarios.find_one({'id': id})
-    if not persona:
+    try:
+        persona = Usuario.objects.get(id=id)
+    except ObjectDoesNotExist:
         return redirect('usuarios:usuario_listar')
 
     error = None
     calle = ''
     ciudad = ''
-    if persona.get('direccion'):
-        calle = persona['direccion']['calle']
-        ciudad = persona['direccion']['ciudad']
+    if persona.direccion:
+        calle = persona.direccion['calle']
+        ciudad = persona.direccion['ciudad']
 
     datos = {
-        'nombre': persona['nombre'],
-        'rol': persona['rol'],
+        'nombre': persona.nombre,
+        'rol': persona.rol,
         'calle': calle,
         'ciudad': ciudad,
-        'activo': persona['activo'],
+        'activo': persona.activo,
     }
 
     if request.method == 'POST':
@@ -192,7 +202,7 @@ def usuario_editar(request, id):
         activo = request.POST.get('activo') == 'on'
         datos = {'nombre': nombre, 'rol': rol, 'calle': calle, 'ciudad': ciudad, 'activo': activo}
 
-        es_yo = persona['id'] == usuario['id']
+        es_yo = persona.id == usuario.id
 
         if not nombre:
             error = 'El nombre es obligatorio.'
@@ -209,20 +219,18 @@ def usuario_editar(request, id):
             if calle and ciudad:
                 direccion = {'calle': calle, 'ciudad': ciudad}
 
-            db.usuarios.update_one(
-                {'id': id},
-                {'$set': {
-                    'nombre': nombre,
-                    'rol': rol,
-                    'direccion': direccion,
-                    'activo': activo,
-                }}
-            )
+            persona.nombre = nombre
+            persona.rol = rol
+            persona.direccion = direccion
+            persona.activo = activo
 
-            if es_yo:
-                request.session['usuario_nombre'] = nombre
-
-            return redirect('usuarios:usuario_detalle', id=id)
+            try:
+                persona.save()
+                if es_yo:
+                    request.session['usuario_nombre'] = nombre
+                return redirect('usuarios:usuario_detalle', id=id)
+            except DatabaseError:
+                error = 'Los datos no cumplen con la validacion de la base de datos.'
 
     contexto = {
         'persona': persona,
@@ -236,18 +244,20 @@ def usuario_desactivar(request, id):
     usuario = usuario_actual(request)
     if not usuario:
         return redirect('usuarios:ingresar')
-    if usuario['rol'] != 'admin':
+    if usuario.rol != 'admin':
         return redirect('productos:catalogo')
 
-    persona = db.usuarios.find_one({'id': id})
-    if not persona:
+    try:
+        persona = Usuario.objects.get(id=id)
+    except ObjectDoesNotExist:
         return redirect('usuarios:usuario_listar')
 
-    if persona['id'] == usuario['id']:
+    if persona.id == usuario.id:
         return mostrar_usuario(request, usuario, persona, 'No puedes desactivar tu propia cuenta.')
 
     if request.method == 'POST':
-        db.usuarios.update_one({'id': id}, {'$set': {'activo': False}})
+        persona.activo = False
+        persona.save()
         return redirect('usuarios:usuario_listar')
 
     return render(request, 'usuarios/usuario_desactivar.html', {'persona': persona})

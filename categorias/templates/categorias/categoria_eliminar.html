@@ -5,14 +5,24 @@
 {% block contenido %}
 <h1>Eliminar categoria</h1>
 
-<p>Seguro que quieres eliminar la categoria <b>{{ categoria.nombre }}</b>?</p>
-<p>Esta accion no se puede deshacer. Si solo quieres ocultarla, mejor desactivala.</p>
-
-<form method="post">
-    {% csrf_token %}
+{% if error %}
+    <p class="error">{{ error }}</p>
     <p class="acciones">
-        <button type="submit">Si, eliminar</button>
-        <a href="{% url 'categorias:categoria_listar' %}">Cancelar</a>
+        {% if categoria.activo %}
+            <a href="{% url 'categorias:categoria_desactivar' categoria.id %}">Desactivar</a>
+        {% endif %}
+        <a href="{% url 'categorias:categoria_listar' %}">Volver</a>
     </p>
-</form>
+{% else %}
+    <p>Seguro que quieres eliminar la categoria <b>{{ categoria.nombre }}</b>?</p>
+    <p>Esta accion no se puede deshacer. Si solo quieres ocultarla, mejor desactivala.</p>
+
+    <form method="post">
+        {% csrf_token %}
+        <p class="acciones">
+            <button type="submit">Si, eliminar</button>
+            <a href="{% url 'categorias:categoria_listar' %}">Cancelar</a>
+        </p>
+    </form>
+{% endif %}
 {% endblock %}

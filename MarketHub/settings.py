@@ -58,7 +58,9 @@ DATABASES = {
     'default': {
         'ENGINE': 'djongo',
         'NAME': 'markethub_db',
-        'HOST': os.environ.get('MONGO_HOST', 'mongodb://localhost:27017/'),
+        'CLIENT': {
+            'host': os.environ.get('MONGO_HOST', 'mongodb://localhost:27017/'),
+        },
     }
 }
 
