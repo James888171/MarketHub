@@ -26,7 +26,7 @@
                 <tr>
                     <td>{{ item.producto.nombre }}</td>
                     <td>${{ item.producto.precio }}</td>
-                    <td><input type="number" name="cantidad_{{ forloop.counter0 }}" min="0" value="{{ item.cantidad }}"></td>
+                    <td><input type="number" name="cantidad_{{ forloop.counter0 }}" min="0" value="{{ item.cantidad }}" aria-label="Cantidad de {{ item.producto.nombre }}"></td>
                     <td>${{ item.subtotal }}</td>
                     <td><a href="{% url 'ordenes:carrito_quitar' forloop.counter0 %}">Quitar</a></td>
                 </tr>
@@ -37,24 +37,8 @@
 
     <p>Total: <b>${{ total }}</b></p>
 
-    <h3>Direccion de envio</h3>
-
-    <form method="post" action="{% url 'ordenes:carrito_finalizar' %}">
-        {% csrf_token %}
-
-        <p>
-            <label for="calle">Calle</label><br>
-            <input type="text" id="calle" name="calle" value="{{ direccion.calle|default:'' }}" required>
-        </p>
-
-        <p>
-            <label for="ciudad">Ciudad</label><br>
-            <input type="text" id="ciudad" name="ciudad" value="{{ direccion.ciudad|default:'' }}" required>
-        </p>
-
-        <button type="submit">Finalizar compra</button>
-    </form>
+    <p><a class="boton-nuevo" href="{% url 'ordenes:carrito_confirmar' %}">Continuar con la compra</a></p>
 {% else %}
-    <p>Tu carrito esta vacio.</p>
+    <p class="vacio">Tu carrito esta vacio.</p>
 {% endif %}
 {% endblock %}

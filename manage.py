@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-"""Django's command-line utility for administrative tasks."""
 import os
 import sys
 
@@ -8,7 +7,6 @@ import django.utils
 django.utils.six = six
 
 def main():
-    """Run administrative tasks."""
     os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'MarketHub.settings')
     try:
         from django.core.management import execute_from_command_line

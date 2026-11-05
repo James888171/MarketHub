@@ -1,0 +1,35 @@
+{% extends 'productos/base.html' %}
+
+{% block titulo %}Editar categoria{% endblock %}
+
+{% block contenido %}
+<h1>Editar categoria</h1>
+
+{% if error %}
+    <p class="error">{{ error }}</p>
+{% endif %}
+
+<form class="formulario" method="post">
+    {% csrf_token %}
+
+    <p>
+        <label for="id_nombre">Nombre</label>
+        {{ formulario.nombre }}
+    </p>
+
+    <p>
+        <label for="id_descripcion">Descripcion</label>
+        {{ formulario.descripcion }}
+    </p>
+
+    <p class="casilla">
+        {{ formulario.activo }}
+        <label for="id_activo">Activa</label>
+    </p>
+
+    <p class="acciones">
+        <button type="submit">Guardar cambios</button>
+        <a href="{% url 'categorias:categoria_listar' %}">Cancelar</a>
+    </p>
+</form>
+{% endblock %}

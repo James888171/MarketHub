@@ -2,6 +2,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import Q
 from django.shortcuts import render, redirect
 from usuarios.views import usuario_actual
+from .forms import FormularioCategoria
 from .models import Categoria
 
 
@@ -59,12 +60,10 @@ def categoria_crear(request):
         categoria = {'nombre': nombre, 'descripcion': descripcion, 'activo': activo}
 
     contexto = {
-        'categoria': categoria,
+        'formulario': FormularioCategoria(initial=categoria),
         'error': error,
-        'titulo': 'Nueva categoría',
-        'boton': 'Crear categoría',
     }
-    return render(request, 'categorias/categoria_form.html', contexto)
+    return render(request, 'categorias/categoria_crear.html', contexto)
 
 
 def categoria_editar(request, id):
@@ -100,13 +99,52 @@ def categoria_editar(request, id):
             categoria.save()
             return redirect('categorias:categoria_listar')
 
-    contexto = {
-        'categoria': categoria,
-        'error': error,
-        'titulo': 'Editar categoría',
-        'boton': 'Guardar cambios',
+    datos = {
+        'nombre': categoria.nombre,
+        'descripcion': categoria.descripcion,
+        'activo': categoria.activo,
     }
-    return render(request, 'categorias/categoria_form.html', contexto)
+
+    contexto = {
+        'formulario': FormularioCategoria(initial=datos),
+        'error': error,
+    }
+    return render(request, 'categorias/categoria_editar.html', contexto)
+
+
+def categoria_detalle(request, id):
+    usuario = usuario_actual(request)
+    if not usuario:
+        return redirect('usuarios:ingresar')
+    if usuario['rol'] != 'admin':
+        return redirect('ordenes:carrito_ver')
+
+    try:
+        categoria = Categoria.objects.get(id=id)
+    except ObjectDoesNotExist:
+        return redirect('categorias:categoria_listar')
+
+    return render(request, 'categorias/categoria_detalle.html', {'categoria': categoria})
+
+
+def categoria_desactivar(request, id):
+    usuario = usuario_actual(request)
+    if not usuario:
+        return redirect('usuarios:ingresar')
+    if usuario['rol'] != 'admin':
+        return redirect('ordenes:carrito_ver')
+
+    try:
+        categoria = Categoria.objects.get(id=id)
+    except ObjectDoesNotExist:
+        return redirect('categorias:categoria_listar')
+
+    if request.method == 'POST':
+        categoria.activo = False
+        categoria.save()
+        return redirect('categorias:categoria_listar')
+
+    return render(request, 'categorias/categoria_desactivar.html', {'categoria': categoria})
 
 
 def categoria_eliminar(request, id):

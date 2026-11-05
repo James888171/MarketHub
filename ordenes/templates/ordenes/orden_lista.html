@@ -1,27 +1,36 @@
 {% extends 'productos/base.html' %}
 
-{% block titulo %}Ordenes{% endblock %}
+{% block titulo %}{% if es_admin %}Ordenes{% else %}Mis ordenes{% endif %}{% endblock %}
 
 {% block contenido %}
-<h1>{% if es_admin %}Ordenes{% else %}Mis ordenes{% endif %}</h1>
-
-<form method="get">
-    {% if es_admin %}
-        <input type="text" name="q" value="{{ busqueda }}" placeholder="Buscar por email">
+<div class="encabezado-lista">
+    <h1>{% if es_admin %}Ordenes{% else %}Mis ordenes{% endif %}</h1>
+    {% if not es_admin %}
+        <a class="boton-nuevo" href="{% url 'productos:catalogo' %}">Nueva compra</a>
     {% endif %}
-    <select name="estado">
-        <option value="">Todos los estados</option>
-        {% for valor, nombre in estados %}
-            <option value="{{ valor }}" {% if estado == valor %}selected{% endif %}>{{ nombre }}</option>
-        {% endfor %}
-    </select>
+</div>
+
+<form class="filtro" method="get">
+    {% if es_admin %}
+        <div>
+            <label for="q">Buscar por email del cliente</label>
+            <input type="text" id="q" name="q" value="{{ busqueda }}" placeholder="Ej: ana@correo.com">
+        </div>
+    {% endif %}
+    <div>
+        <label for="estado">Estado</label>
+        <select id="estado" name="estado">
+            <option value="">Todos los estados</option>
+            {% for valor, nombre in estados %}
+                <option value="{{ valor }}" {% if estado == valor %}selected{% endif %}>{{ nombre }}</option>
+            {% endfor %}
+        </select>
+    </div>
     <button type="submit">Filtrar</button>
     {% if busqueda or estado %}
         <a href="{% url 'ordenes:orden_listar' %}">Limpiar</a>
     {% endif %}
 </form>
-
-<br>
 
 {% if ordenes %}
     <table>
@@ -46,9 +55,11 @@
             </tr>
         {% endfor %}
     </table>
+{% elif busqueda or estado %}
+    <p class="vacio">No se encontraron ordenes con esos filtros.</p>
 {% else %}
-    <p>No hay ordenes.</p>
+    <p class="vacio">Todavia no hay ordenes. Cuando se realicen compras, apareceran aqui.</p>
 {% endif %}
 
-<p>{{ ordenes|length }} ordenes encontradas.</p>
+<p>Mostrando {{ ordenes|length }} ordenes.</p>
 {% endblock %}

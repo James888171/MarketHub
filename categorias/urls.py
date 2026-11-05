@@ -6,6 +6,8 @@ app_name = 'categorias'
 urlpatterns = [
     path('', views.categoria_listar, name='categoria_listar'),
     path('nueva/', views.categoria_crear, name='categoria_crear'),
+    path('<int:id>/', views.categoria_detalle, name='categoria_detalle'),
     path('<int:id>/editar/', views.categoria_editar, name='categoria_editar'),
+    path('<int:id>/desactivar/', views.categoria_desactivar, name='categoria_desactivar'),
     path('<int:id>/eliminar/', views.categoria_eliminar, name='categoria_eliminar'),
 ]

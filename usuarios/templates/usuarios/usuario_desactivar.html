@@ -10,7 +10,9 @@
 
 <form method="post">
     {% csrf_token %}
-    <button type="submit">Si, desactivar</button>
-    <a href="{% url 'usuarios:usuario_detalle' persona.id %}">Cancelar</a>
+    <p class="acciones">
+        <button type="submit">Si, desactivar</button>
+        <a href="{% url 'usuarios:usuario_detalle' persona.id %}">Cancelar</a>
+    </p>
 </form>
 {% endblock %}

@@ -3,17 +3,21 @@
 {% block titulo %}Categorias{% endblock %}
 
 {% block contenido %}
-<h1>Categorias</h1>
+<div class="encabezado-lista">
+    <h1>Categorias</h1>
+    <a class="boton-nuevo" href="{% url 'categorias:categoria_crear' %}">Nueva categoria</a>
+</div>
 
-<form method="get">
-    <input type="text" name="q" value="{{ busqueda }}" placeholder="Buscar categoria">
+<form class="filtro" method="get">
+    <div>
+        <label for="q">Buscar por nombre</label>
+        <input type="text" id="q" name="q" value="{{ busqueda }}" placeholder="Nombre completo de la categoria">
+    </div>
     <button type="submit">Buscar</button>
     {% if busqueda %}
         <a href="{% url 'categorias:categoria_listar' %}">Limpiar</a>
     {% endif %}
 </form>
-
-<p><a href="{% url 'categorias:categoria_crear' %}">Nueva categoria</a></p>
 
 {% if categorias %}
     <table>
@@ -29,14 +33,20 @@
                 <td>{{ categoria.descripcion|default:'Sin descripcion' }}</td>
                 <td>{% if categoria.activo %}Activa{% else %}Inactiva{% endif %}</td>
                 <td>
+                    <a href="{% url 'categorias:categoria_detalle' categoria.id %}">Ver detalle</a>
                     <a href="{% url 'categorias:categoria_editar' categoria.id %}">Editar</a>
+                    {% if categoria.activo %}
+                        <a href="{% url 'categorias:categoria_desactivar' categoria.id %}">Desactivar</a>
+                    {% endif %}
                     <a href="{% url 'categorias:categoria_eliminar' categoria.id %}">Eliminar</a>
                 </td>
             </tr>
         {% endfor %}
     </table>
+{% elif busqueda %}
+    <p class="vacio">No se encontraron categorias con esa busqueda.</p>
 {% else %}
-    <p>No hay categorias.</p>
+    <p class="vacio">Todavia no hay categorias. Cuando se agreguen, apareceran aqui.</p>
 {% endif %}
 
 <p>Mostrando {{ categorias|length }} de {{ total }} categorias.</p>

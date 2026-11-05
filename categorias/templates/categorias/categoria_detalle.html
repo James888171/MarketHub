@@ -1,0 +1,19 @@
+{% extends 'productos/base.html' %}
+
+{% block titulo %}{{ categoria.nombre }}{% endblock %}
+
+{% block contenido %}
+<h1>{{ categoria.nombre }}</h1>
+
+<p>Descripcion: {{ categoria.descripcion|default:'Sin descripcion' }}</p>
+<p>Estado: {% if categoria.activo %}Activa{% else %}Inactiva{% endif %}</p>
+
+<p class="acciones">
+    <a href="{% url 'categorias:categoria_editar' categoria.id %}">Editar</a>
+    {% if categoria.activo %}
+        <a href="{% url 'categorias:categoria_desactivar' categoria.id %}">Desactivar</a>
+    {% endif %}
+    <a href="{% url 'categorias:categoria_eliminar' categoria.id %}">Eliminar</a>
+    <a href="{% url 'categorias:categoria_listar' %}">Volver</a>
+</p>
+{% endblock %}

@@ -3,23 +3,29 @@
 {% block titulo %}Usuarios{% endblock %}
 
 {% block contenido %}
-<h1>Usuarios</h1>
+<div class="encabezado-lista">
+    <h1>Usuarios</h1>
+</div>
 
-<form method="get">
-    <input type="text" name="q" value="{{ busqueda }}" placeholder="Buscar por email">
-    <select name="rol">
-        <option value="">Todos los roles</option>
-        {% for valor, nombre in roles %}
-            <option value="{{ valor }}" {% if rol == valor %}selected{% endif %}>{{ nombre }}</option>
-        {% endfor %}
-    </select>
+<form class="filtro" method="get">
+    <div>
+        <label for="q">Buscar por email</label>
+        <input type="text" id="q" name="q" value="{{ busqueda }}" placeholder="Ej: ana@correo.com">
+    </div>
+    <div>
+        <label for="rol">Rol</label>
+        <select id="rol" name="rol">
+            <option value="">Todos los roles</option>
+            {% for valor, nombre in roles %}
+                <option value="{{ valor }}" {% if rol == valor %}selected{% endif %}>{{ nombre }}</option>
+            {% endfor %}
+        </select>
+    </div>
     <button type="submit">Buscar</button>
     {% if busqueda or rol %}
         <a href="{% url 'usuarios:usuario_listar' %}">Limpiar</a>
     {% endif %}
 </form>
-
-<br>
 
 {% if usuarios %}
     <table>
@@ -34,17 +40,22 @@
             <tr>
                 <td>{{ persona.nombre }}</td>
                 <td>{{ persona.email }}</td>
-                <td>{{ persona.rol }}</td>
+                <td>{% if persona.rol == 'admin' %}Admin{% else %}Cliente{% endif %}</td>
                 <td>{% if persona.activo %}Activo{% else %}Inactivo{% endif %}</td>
                 <td>
                     <a href="{% url 'usuarios:usuario_detalle' persona.id %}">Ver detalle</a>
                     <a href="{% url 'usuarios:usuario_editar' persona.id %}">Editar</a>
+                    {% if persona.activo and persona.id != request.session.usuario_id %}
+                        <a href="{% url 'usuarios:usuario_desactivar' persona.id %}">Desactivar</a>
+                    {% endif %}
                 </td>
             </tr>
         {% endfor %}
     </table>
+{% elif busqueda or rol %}
+    <p class="vacio">No se encontraron usuarios con esa busqueda.</p>
 {% else %}
-    <p>No hay usuarios.</p>
+    <p class="vacio">Todavia no hay usuarios. Cuando se registren, apareceran aqui.</p>
 {% endif %}
 
 <p>Mostrando {{ usuarios|length }} de {{ total }} usuarios.</p>

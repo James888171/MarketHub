@@ -1,0 +1,18 @@
+{% extends 'productos/base.html' %}
+
+{% block titulo %}Desactivar categoria{% endblock %}
+
+{% block contenido %}
+<h1>Desactivar categoria</h1>
+
+<p>Seguro que quieres desactivar la categoria <b>{{ categoria.nombre }}</b>?</p>
+<p>Ya no se podra elegir al crear productos ni para filtrar el catalogo. Los productos que ya la tienen no cambian.</p>
+
+<form method="post">
+    {% csrf_token %}
+    <p class="acciones">
+        <button type="submit">Si, desactivar</button>
+        <a href="{% url 'categorias:categoria_listar' %}">Cancelar</a>
+    </p>
+</form>
+{% endblock %}

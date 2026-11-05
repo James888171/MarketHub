@@ -3,23 +3,30 @@
 {% block titulo %}Productos{% endblock %}
 
 {% block contenido %}
-<h1>Productos</h1>
+<div class="encabezado-lista">
+    <h1>Productos</h1>
+    <a class="boton-nuevo" href="{% url 'productos:producto_crear' %}">Nuevo producto</a>
+</div>
 
-<form method="get">
-    <input type="text" name="q" value="{{ busqueda }}" placeholder="Buscar producto">
-    <select name="categoria">
-        <option value="">Todas las categorias</option>
-        {% for categoria in categorias %}
-            <option value="{{ categoria.id }}" {% if categoria_id == categoria.id|stringformat:"s" %}selected{% endif %}>{{ categoria.nombre }}</option>
-        {% endfor %}
-    </select>
+<form class="filtro" method="get">
+    <div>
+        <label for="q">Buscar por nombre</label>
+        <input type="text" id="q" name="q" value="{{ busqueda }}" placeholder="Nombre completo del producto">
+    </div>
+    <div>
+        <label for="categoria">Categoria</label>
+        <select id="categoria" name="categoria">
+            <option value="">Todas las categorias</option>
+            {% for categoria in categorias %}
+                <option value="{{ categoria.id }}" {% if categoria_id == categoria.id|stringformat:"s" %}selected{% endif %}>{{ categoria.nombre }}</option>
+            {% endfor %}
+        </select>
+    </div>
     <button type="submit">Buscar</button>
     {% if busqueda or categoria_id %}
         <a href="{% url 'productos:producto_listar' %}">Limpiar</a>
     {% endif %}
 </form>
-
-<p><a href="{% url 'productos:producto_crear' %}">Nuevo producto</a></p>
 
 {% if productos %}
     <table>
@@ -39,6 +46,7 @@
                 <td>{{ producto.stock }}</td>
                 <td>{% if producto.activo %}Activo{% else %}Inactivo{% endif %}</td>
                 <td>
+                    <a href="{% url 'productos:producto_detalle' producto.id %}">Ver detalle</a>
                     <a href="{% url 'productos:producto_editar' producto.id %}">Editar</a>
                     {% if producto.activo %}
                         <a href="{% url 'productos:producto_desactivar' producto.id %}">Desactivar</a>
@@ -47,8 +55,10 @@
             </tr>
         {% endfor %}
     </table>
+{% elif busqueda or categoria_id %}
+    <p class="vacio">No se encontraron productos con esa busqueda.</p>
 {% else %}
-    <p>No hay productos.</p>
+    <p class="vacio">Todavia no hay productos. Cuando se agreguen, apareceran aqui.</p>
 {% endif %}
 
 <p>Mostrando {{ productos|length }} de {{ total }} productos.</p>

@@ -1,0 +1,54 @@
+{% extends 'productos/base.html' %}
+
+{% block titulo %}Editar producto{% endblock %}
+
+{% block contenido %}
+<h1>Editar producto</h1>
+
+{% if error %}
+    <p class="error">{{ error }}</p>
+{% endif %}
+
+{% if not categorias %}
+    <p class="error">Primero debes crear una categoria activa. <a href="{% url 'categorias:categoria_crear' %}">Crear categoria</a></p>
+{% endif %}
+
+<form class="formulario" method="post">
+    {% csrf_token %}
+
+    <p>
+        <label for="id_nombre">Nombre</label>
+        {{ formulario.nombre }}
+    </p>
+
+    <p>
+        <label for="id_precio">Precio</label>
+        {{ formulario.precio }}
+    </p>
+
+    <p>
+        <label for="id_stock">Stock</label>
+        {{ formulario.stock }}
+    </p>
+
+    <p>
+        <label for="categoria">Categoria</label>
+        <select id="categoria" name="categoria" required>
+            <option value="">Selecciona una categoria</option>
+            {% for categoria in categorias %}
+                <option value="{{ categoria.id }}" {% if producto.categoria_id == categoria.id|stringformat:"s" %}selected{% endif %}>{{ categoria.nombre }}</option>
+            {% endfor %}
+        </select>
+    </p>
+
+    <p class="casilla">
+        {{ formulario.activo }}
+        <label for="id_activo">Activo</label>
+    </p>
+
+    <p class="acciones">
+        <button type="submit">Guardar cambios</button>
+        <a href="{% url 'productos:producto_listar' %}">Cancelar</a>
+    </p>
+</form>
+{% endblock %}

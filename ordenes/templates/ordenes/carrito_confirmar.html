@@ -1,0 +1,56 @@
+{% extends 'productos/base.html' %}
+
+{% block titulo %}Confirmar compra{% endblock %}
+
+{% block contenido %}
+<h1>Confirmar compra</h1>
+
+{% if error %}
+    <p class="error">{{ error }}</p>
+{% endif %}
+
+{% if carrito.items %}
+    <table>
+        <tr>
+            <th>Producto</th>
+            <th>Precio</th>
+            <th>Cantidad</th>
+            <th>Subtotal</th>
+        </tr>
+        {% for item in carrito.items %}
+            <tr>
+                <td>{{ item.producto.nombre }}</td>
+                <td>${{ item.producto.precio }}</td>
+                <td>{{ item.cantidad }}</td>
+                <td>${{ item.subtotal }}</td>
+            </tr>
+        {% endfor %}
+    </table>
+
+    <p>Total: <b>${{ total }}</b></p>
+
+    <h3>Direccion de envio</h3>
+
+    <form class="formulario" method="post" action="{% url 'ordenes:carrito_finalizar' %}">
+        {% csrf_token %}
+
+        <p>
+            <label for="id_calle">Calle</label>
+            {{ formulario.calle }}
+        </p>
+
+        <p>
+            <label for="id_ciudad">Ciudad</label>
+            {{ formulario.ciudad }}
+        </p>
+
+        <p class="acciones">
+            <button type="submit">Finalizar compra</button>
+            <a href="{% url 'ordenes:carrito_ver' %}">Volver al carrito</a>
+        </p>
+    </form>
+{% else %}
+    <p class="vacio">Tu carrito esta vacio.</p>
+    <p><a href="{% url 'productos:catalogo' %}">Ver catalogo</a></p>
+{% endif %}
+{% endblock %}

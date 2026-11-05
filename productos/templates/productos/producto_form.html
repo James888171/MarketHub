@@ -13,26 +13,26 @@
     <p class="error">Primero debes crear una categoria activa. <a href="{% url 'categorias:categoria_crear' %}">Crear categoria</a></p>
 {% endif %}
 
-<form method="post">
+<form class="formulario" method="post">
     {% csrf_token %}
 
     <p>
-        <label for="nombre">Nombre</label><br>
-        <input type="text" id="nombre" name="nombre" value="{{ producto.nombre }}" required>
+        <label for="id_nombre">Nombre</label>
+        {{ formulario.nombre }}
     </p>
 
     <p>
-        <label for="precio">Precio</label><br>
-        <input type="text" id="precio" name="precio" value="{{ producto.precio }}" required>
+        <label for="id_precio">Precio</label>
+        {{ formulario.precio }}
     </p>
 
     <p>
-        <label for="stock">Stock</label><br>
-        <input type="text" id="stock" name="stock" value="{{ producto.stock }}" required>
+        <label for="id_stock">Stock</label>
+        {{ formulario.stock }}
     </p>
 
     <p>
-        <label for="categoria">Categoria</label><br>
+        <label for="categoria">Categoria</label>
         <select id="categoria" name="categoria" required>
             <option value="">Selecciona una categoria</option>
             {% for categoria in categorias %}
@@ -41,12 +41,14 @@
         </select>
     </p>
 
-    <p>
-        <input type="checkbox" id="activo" name="activo" {% if producto.activo %}checked{% endif %}>
-        <label for="activo">Activo</label>
+    <p class="casilla">
+        {{ formulario.activo }}
+        <label for="id_activo">Activo</label>
     </p>
 
-    <button type="submit">{{ boton }}</button>
-    <a href="{% url 'productos:producto_listar' %}">Cancelar</a>
+    <p class="acciones">
+        <button type="submit">{{ boton }}</button>
+        <a href="{% url 'productos:producto_listar' %}">Cancelar</a>
+    </p>
 </form>
 {% endblock %}

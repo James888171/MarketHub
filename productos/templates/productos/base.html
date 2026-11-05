@@ -1,83 +1,36 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block titulo %}MarketHub{% endblock %}</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            background-color: #f4f4f4;
-        }
-
-        header {
-            background-color: #222;
-            color: white;
-            padding: 15px;
-        }
-
-        header a {
-            color: white;
-            margin-right: 15px;
-        }
-
-        main {
-            max-width: 900px;
-            margin: 20px auto;
-            padding: 0 15px;
-        }
-
-        a {
-            color: #087f8c;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            background-color: white;
-        }
-
-        th, td {
-            border: 1px solid #ccc;
-            padding: 8px;
-            text-align: left;
-        }
-
-        th {
-            background-color: #eee;
-        }
-
-        button {
-            background-color: #087f8c;
-            color: white;
-            border: none;
-            padding: 8px 12px;
-            cursor: pointer;
-        }
-
-        .error {
-            color: #c0392b;
-        }
-    </style>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:wght@400;700&family=Hanken+Grotesk:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'productos/estilos.css' %}">
 </head>
 <body>
-    <header>
-        <h2>MarketHub</h2>
-
-        {% if request.session.usuario_id %}
-            {% if request.session.usuario_rol == 'admin' %}
-                <a href="{% url 'categorias:categoria_listar' %}">Categorias</a>
-                <a href="{% url 'productos:producto_listar' %}">Productos</a>
-                <a href="{% url 'ordenes:orden_listar' %}">Ordenes</a>
-                <a href="{% url 'usuarios:usuario_listar' %}">Usuarios</a>
-            {% else %}
-                <a href="{% url 'productos:catalogo' %}">Catalogo</a>
-                <a href="{% url 'ordenes:carrito_ver' %}">Mi carrito</a>
-                <a href="{% url 'ordenes:orden_listar' %}">Mis ordenes</a>
-            {% endif %}
-            <a href="{% url 'usuarios:salir' %}">Salir</a>
-            ({{ request.session.usuario_nombre }})
-        {% endif %}
+    <header class="cabecera">
+        <div class="cabecera-interior">
+            <a class="marca" href="{% url 'productos:catalogo' %}">MarketHub</a>
+            <nav class="menu">
+                {% if request.session.usuario_id %}
+                    {% if request.session.usuario_rol == 'admin' %}
+                        <a href="{% url 'categorias:categoria_listar' %}">Categorias</a>
+                        <a href="{% url 'productos:producto_listar' %}">Productos</a>
+                        <a href="{% url 'ordenes:orden_listar' %}">Ordenes</a>
+                        <a href="{% url 'usuarios:usuario_listar' %}">Usuarios</a>
+                    {% else %}
+                        <a href="{% url 'productos:catalogo' %}">Catalogo</a>
+                        <a href="{% url 'ordenes:carrito_ver' %}">Mi carrito</a>
+                        <a href="{% url 'ordenes:orden_listar' %}">Mis ordenes</a>
+                    {% endif %}
+                    <a href="{% url 'usuarios:salir' %}">Salir</a>
+                    <span class="usuario-sesion">{{ request.session.usuario_nombre }}</span>
+                {% endif %}
+            </nav>
+        </div>
     </header>
 
     <main>

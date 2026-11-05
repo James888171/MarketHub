@@ -1,6 +1,7 @@
 from django.contrib.auth.hashers import check_password, make_password
 from django.shortcuts import render, redirect
 from MarketHub.conexion import db, siguiente_id
+from .forms import FormularioIngresar, FormularioRegistro, FormularioUsuario
 from .models import Usuario
 
 
@@ -43,7 +44,8 @@ def ingresar(request):
             request.session['usuario_rol'] = usuario['rol']
             return pagina_inicio(usuario)
 
-    return render(request, 'usuarios/ingresar.html', {'error': error, 'email': email})
+    formulario = FormularioIngresar(initial={'email': email})
+    return render(request, 'usuarios/ingresar.html', {'error': error, 'formulario': formulario})
 
 
 def registrarse(request):
@@ -93,7 +95,8 @@ def registrarse(request):
             request.session['usuario_rol'] = usuario['rol']
             return pagina_inicio(usuario)
 
-    return render(request, 'usuarios/registro.html', {'error': error, 'datos': datos})
+    formulario = FormularioRegistro(initial=datos)
+    return render(request, 'usuarios/registro.html', {'error': error, 'formulario': formulario})
 
 
 def salir(request):
@@ -223,8 +226,7 @@ def usuario_editar(request, id):
 
     contexto = {
         'persona': persona,
-        'datos': datos,
-        'roles': Usuario.ROL_CHOICES,
+        'formulario': FormularioUsuario(initial=datos),
         'error': error,
     }
     return render(request, 'usuarios/usuario_form.html', contexto)

@@ -1,6 +1,7 @@
 from django.shortcuts import render, redirect
 from MarketHub.conexion import db, siguiente_id
 from usuarios.views import usuario_actual
+from .forms import FormularioProducto
 
 
 def producto_listar(request):
@@ -83,6 +84,7 @@ def producto_crear(request):
             return redirect('productos:producto_listar')
 
     contexto = {
+        'formulario': FormularioProducto(initial=producto),
         'producto': producto,
         'categorias': categorias,
         'error': error,
@@ -161,6 +163,7 @@ def producto_editar(request, id):
             return redirect('productos:producto_listar')
 
     contexto = {
+        'formulario': FormularioProducto(initial=producto),
         'producto': producto,
         'categorias': categorias,
         'error': error,
@@ -168,6 +171,20 @@ def producto_editar(request, id):
         'boton': 'Guardar cambios',
     }
     return render(request, 'productos/producto_form.html', contexto)
+
+
+def producto_detalle(request, id):
+    usuario = usuario_actual(request)
+    if not usuario:
+        return redirect('usuarios:ingresar')
+    if usuario['rol'] != 'admin':
+        return redirect('productos:catalogo')
+
+    producto = db.productos.find_one({'id': id})
+    if not producto:
+        return redirect('productos:producto_listar')
+
+    return render(request, 'productos/producto_detalle.html', {'producto': producto})
 
 
 def producto_desactivar(request, id):

@@ -10,7 +10,9 @@
 
 <form method="post">
     {% csrf_token %}
-    <button type="submit">Si, cancelar orden</button>
-    <a href="{% url 'ordenes:orden_detalle' orden.id %}">Volver</a>
+    <p class="acciones">
+        <button type="submit">Si, cancelar orden</button>
+        <a href="{% url 'ordenes:orden_detalle' orden.id %}">Volver</a>
+    </p>
 </form>
 {% endblock %}

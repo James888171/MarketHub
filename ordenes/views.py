@@ -3,6 +3,7 @@ from datetime import datetime
 from django.shortcuts import render, redirect
 from MarketHub.conexion import db, siguiente_id
 from usuarios.views import usuario_actual
+from .forms import FormularioDireccion
 from .models import Orden
 
 
@@ -197,6 +198,31 @@ def carrito_quitar(request, posicion):
     return redirect('ordenes:carrito_ver')
 
 
+def carrito_confirmar(request):
+    usuario = usuario_actual(request)
+    if not usuario:
+        return redirect('usuarios:ingresar')
+
+    carrito = obtener_carrito(usuario)
+
+    total = 0
+    for item in carrito['items']:
+        item['subtotal'] = item['producto']['precio'] * item['cantidad']
+        total = total + item['subtotal']
+
+    direccion = {}
+    if usuario.get('direccion'):
+        direccion = usuario['direccion']
+
+    contexto = {
+        'carrito': carrito,
+        'total': total,
+        'formulario': FormularioDireccion(initial=direccion),
+        'error': None,
+    }
+    return render(request, 'ordenes/carrito_confirmar.html', contexto)
+
+
 def carrito_finalizar(request):
     usuario = usuario_actual(request)
     if not usuario:
@@ -362,3 +388,24 @@ def orden_cancelar(request, id):
         return redirect('ordenes:orden_detalle', id=id)
 
     return render(request, 'ordenes/orden_cancelar.html', {'orden': orden})
+
+
+def orden_eliminar(request, id):
+    usuario = usuario_actual(request)
+    if not usuario:
+        return redirect('usuarios:ingresar')
+    if usuario['rol'] != 'admin':
+        return redirect('ordenes:carrito_ver')
+
+    orden = db.ordenes.find_one({'id': id})
+    if not orden:
+        return redirect('ordenes:orden_listar')
+
+    if orden['estado'] != 'cancelado':
+        return mostrar_detalle(request, usuario, orden, 'Solo se pueden eliminar ordenes canceladas.')
+
+    if request.method == 'POST':
+        db.ordenes.delete_one({'_id': orden['_id']})
+        return redirect('ordenes:orden_listar')
+
+    return render(request, 'ordenes/orden_eliminar.html', {'orden': orden})

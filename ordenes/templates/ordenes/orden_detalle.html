@@ -35,20 +35,26 @@
 
 {% if es_admin and orden.estado != 'cancelado' %}
     <h3>Cambiar estado</h3>
-    <form method="post" action="{% url 'ordenes:orden_cambiar_estado' orden.id %}">
+    <form class="filtro" method="post" action="{% url 'ordenes:orden_cambiar_estado' orden.id %}">
         {% csrf_token %}
-        <select name="estado">
-            {% for valor, nombre in estados %}
-                <option value="{{ valor }}" {% if orden.estado == valor %}selected{% endif %}>{{ nombre }}</option>
-            {% endfor %}
-        </select>
+        <div>
+            <label for="estado">Estado</label>
+            <select id="estado" name="estado">
+                {% for valor, nombre in estados %}
+                    <option value="{{ valor }}" {% if orden.estado == valor %}selected{% endif %}>{{ nombre }}</option>
+                {% endfor %}
+            </select>
+        </div>
         <button type="submit">Guardar estado</button>
     </form>
 {% endif %}
 
-<p>
+<p class="acciones">
     {% if puede_cancelar %}
         <a href="{% url 'ordenes:orden_cancelar' orden.id %}">Cancelar orden</a>
+    {% endif %}
+    {% if es_admin and orden.estado == 'cancelado' %}
+        <a href="{% url 'ordenes:orden_eliminar' orden.id %}">Eliminar orden</a>
     {% endif %}
     <a href="{% url 'ordenes:orden_listar' %}">Volver</a>
 </p>

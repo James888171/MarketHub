@@ -10,7 +10,7 @@
 {% endif %}
 
 <p>Email: {{ persona.email }}</p>
-<p>Rol: {{ persona.rol }}</p>
+<p>Rol: {% if persona.rol == 'admin' %}Admin{% else %}Cliente{% endif %}</p>
 <p>Estado: {% if persona.activo %}Activo{% else %}Inactivo{% endif %}</p>
 <p>Direccion:
     {% if persona.direccion %}
@@ -20,7 +20,7 @@
     {% endif %}
 </p>
 
-<p>
+<p class="acciones">
     <a href="{% url 'usuarios:usuario_editar' persona.id %}">Editar</a>
     {% if persona.activo and not es_yo %}
         <a href="{% url 'usuarios:usuario_desactivar' persona.id %}">Desactivar</a>
@@ -44,12 +44,12 @@
                 <td>{{ orden.id }}</td>
                 <td>{{ orden.fecha|date:"d/m/Y H:i" }}</td>
                 <td>${{ orden.total }}</td>
-                <td>{{ orden.estado }}</td>
+                <td>{{ orden.estado|capfirst }}</td>
                 <td><a href="{% url 'ordenes:orden_detalle' orden.id %}">Ver detalle</a></td>
             </tr>
         {% endfor %}
     </table>
 {% else %}
-    <p>Este usuario no tiene ordenes.</p>
+    <p class="vacio">Este usuario no tiene ordenes.</p>
 {% endif %}
 {% endblock %}
