@@ -1,7 +1,7 @@
 from djongo import models
 
 class CategoriaSnapshot(models.Model):
-    _id = models.ObjectIdField()
+    categoria_id = models.IntegerField()
     nombre = models.CharField(max_length=255)
     descripcion = models.TextField(blank=True, null=True)
 
@@ -12,7 +12,7 @@ class Producto(models.Model):
     nombre = models.CharField(max_length=255)
     precio = models.IntegerField()
     stock = models.IntegerField()
-    categoria = models.EmbeddedModelField(model_container=CategoriaSnapshot)
+    categoria = models.EmbeddedField(model_container=CategoriaSnapshot)
     activo = models.BooleanField(default=True)
 
     class Meta:

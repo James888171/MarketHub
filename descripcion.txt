@@ -1,0 +1,41 @@
+Proyecto MarketHub
+
+MarketHub es una tienda en linea donde los clientes pueden ver productos, agregarlos a un carrito de compras y hacer pedidos con inicio de sesion, basicamente es un ecommerce (simple).
+
+El proyecto esta dividido en varias aplicaciones:
+- usuarios: inicio de sesion, registro y administracion de usuarios.
+- categorias: manejo de las categorias de los productos.
+- productos: manejo de los productos y el catalogo que ve el cliente.
+- ordenes: el carrito de compras y los pedidos.
+
+La informacion se guarda en una base de datos MongoDB.
+
+
+Aplicacion de ordenes
+
+En esta aplicacion se maneja todo el proceso de compra. Las ordenes se crean a partir del carrito, es decir, el cliente va agregando productos al carrito y cuando termina finaliza la compra, como funciona normalmente en una tienda en linea.
+
+Funciones del carrito:
+- Ver los productos agregados, el precio de cada uno, el subtotal y el total a pagar.
+- Agregar productos desde el catalogo. Si el producto ya estaba en el carrito se suman las unidades.
+- Cambiar las cantidades de los productos. Si se pone 0 el producto se quita del carrito.
+- Quitar un producto del carrito.
+- Finalizar la compra ingresando la direccion de envio. En ese momento se crea la orden, se descuentan los productos del inventario y el carrito queda vacio.
+
+En todos los casos se valida que haya unidades suficientes, para que no se pueda comprar mas de lo que hay disponible.
+
+Funciones de las ordenes:
+- Listar las ordenes. El cliente solo puede ver sus propias ordenes, mientras que el administrador ve las de todos los clientes y puede buscarlas por email. Tambien se pueden filtrar por estado.
+- Ver el detalle de una orden, con los productos, cantidades, precios, total, direccion de envio y estado.
+- Cambiar el estado de la orden (pendiente, pagado, enviado, entregado o cancelado) desde su propia pantalla. Esto solo lo puede hacer el administrador, y si la pasa a cancelado los productos vuelven al inventario.
+- Cancelar una orden.
+
+Se decidio que las ordenes no se eliminan sino que se cancelan, ya que no tiene sentido borrar un pedido que ya se realizo y asi queda el registro. Solo se pueden cancelar las ordenes pendientes o pagadas, porque si ya fue enviada no se puede cancelar. Cuando una orden se cancela los productos vuelven al inventario.
+
+Ademas, la orden guarda el precio que tenia cada producto al momento de la compra, por lo que si despues se cambia el precio de un producto la orden no se ve afectada.
+
+Operaciones CRUD de ordenes:
+- Crear: al finalizar la compra desde el carrito.
+- Consultar: lista de ordenes y detalle de cada orden.
+- Actualizar: cambio de estado de la orden en la pantalla de cambiar estado.
+- Eliminar: cancelacion de la orden.

@@ -16,7 +16,7 @@ class Usuario(models.Model):
     rol = models.CharField(max_length=10, choices=ROL_CHOICES)
     activo = models.BooleanField(default=True)
     
-    direccion = models.EmbeddedModelField(model_container=Direccion, null=True, blank=True)
+    direccion = models.EmbeddedField(model_container=Direccion, null=True, blank=True)
 
     class Meta:
         db_table = 'usuarios'

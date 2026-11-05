@@ -1,6 +1,8 @@
 from django.core.exceptions import ObjectDoesNotExist
+from django.db import DatabaseError
 from django.db.models import Q
 from django.shortcuts import render, redirect
+from productos.models import Producto
 from usuarios.views import usuario_actual
 from .forms import FormularioCategoria
 from .models import Categoria
@@ -10,7 +12,7 @@ def categoria_listar(request):
     usuario = usuario_actual(request)
     if not usuario:
         return redirect('usuarios:ingresar')
-    if usuario['rol'] != 'admin':
+    if usuario.rol != 'admin':
         return redirect('ordenes:carrito_ver')
 
     busqueda = request.GET.get('q', '').strip()
@@ -34,7 +36,7 @@ def categoria_crear(request):
     usuario = usuario_actual(request)
     if not usuario:
         return redirect('usuarios:ingresar')
-    if usuario['rol'] != 'admin':
+    if usuario.rol != 'admin':
         return redirect('ordenes:carrito_ver')
 
     error = None
@@ -50,12 +52,15 @@ def categoria_crear(request):
         elif Categoria.objects.filter(nombre=nombre).exists():
             error = 'Ya existe una categoría con ese nombre.'
         else:
-            Categoria.objects.create(
-                nombre=nombre,
-                descripcion=descripcion,
-                activo=activo,
-            )
-            return redirect('categorias:categoria_listar')
+            try:
+                Categoria.objects.create(
+                    nombre=nombre,
+                    descripcion=descripcion,
+                    activo=activo,
+                )
+                return redirect('categorias:categoria_listar')
+            except DatabaseError:
+                error = 'Los datos no cumplen con la validacion de la base de datos.'
 
         categoria = {'nombre': nombre, 'descripcion': descripcion, 'activo': activo}
 
@@ -70,7 +75,7 @@ def categoria_editar(request, id):
     usuario = usuario_actual(request)
     if not usuario:
         return redirect('usuarios:ingresar')
-    if usuario['rol'] != 'admin':
+    if usuario.rol != 'admin':
         return redirect('ordenes:carrito_ver')
 
     try:
@@ -96,8 +101,18 @@ def categoria_editar(request, id):
         elif repetida and repetida.id != categoria.id:
             error = 'Ya existe otra categoría con ese nombre.'
         else:
-            categoria.save()
-            return redirect('categorias:categoria_listar')
+            try:
+                categoria.save()
+                for producto in Producto.objects.filter(categoria={'categoria_id': categoria.id}):
+                    producto.categoria = {
+                        'categoria_id': categoria.id,
+                        'nombre': categoria.nombre,
+                        'descripcion': categoria.descripcion,
+                    }
+                    producto.save()
+                return redirect('categorias:categoria_listar')
+            except DatabaseError:
+                error = 'Los datos no cumplen con la validacion de la base de datos.'
 
     datos = {
         'nombre': categoria.nombre,
@@ -116,7 +131,7 @@ def categoria_detalle(request, id):
     usuario = usuario_actual(request)
     if not usuario:
         return redirect('usuarios:ingresar')
-    if usuario['rol'] != 'admin':
+    if usuario.rol != 'admin':
         return redirect('ordenes:carrito_ver')
 
     try:
@@ -131,7 +146,7 @@ def categoria_desactivar(request, id):
     usuario = usuario_actual(request)
     if not usuario:
         return redirect('usuarios:ingresar')
-    if usuario['rol'] != 'admin':
+    if usuario.rol != 'admin':
         return redirect('ordenes:carrito_ver')
 
     try:
@@ -151,7 +166,7 @@ def categoria_eliminar(request, id):
     usuario = usuario_actual(request)
     if not usuario:
         return redirect('usuarios:ingresar')
-    if usuario['rol'] != 'admin':
+    if usuario.rol != 'admin':
         return redirect('ordenes:carrito_ver')
 
     try:
@@ -159,8 +174,12 @@ def categoria_eliminar(request, id):
     except ObjectDoesNotExist:
         return redirect('categorias:categoria_listar')
 
-    if request.method == 'POST':
+    error = None
+    if Producto.objects.filter(categoria={'categoria_id': categoria.id}).first():
+        error = 'No se puede eliminar porque hay productos con esta categoria. Puedes desactivarla.'
+
+    if request.method == 'POST' and not error:
         categoria.delete()
         return redirect('categorias:categoria_listar')
 
-    return render(request, 'categorias/categoria_eliminar.html', {'categoria': categoria})
+    return render(request, 'categorias/categoria_eliminar.html', {'categoria': categoria, 'error': error})

@@ -1,0 +1,2970 @@
+ ▐▛███▛█   Claude Code v2.1.318
+▝▜██████▀  Opus 5.5 · Claude Pro
+ ▝▝   ▝▝   ~\Documents\Universidad\mongo-python\MarketHub
+
+
+❯ esto fue lo tecnico que vimos en clase, revisa que le falta a la app para     
+  cumplir con estas condiciones                                                 
+  Stack Tecnológico y Conceptos Técnicos                                        
+  Framework Backend / Web: Uso de Django (mencionado por la importación y la    
+  creación de un archivo forms.py en la raíz del proyecto para manejar          
+  formularios).                                                                 
+                                                                                
+  Manejo de Formularios y Datos: Recepción de parámetros y captura de datos     
+  enviados desde formularios en las vistas.                                     
+                                                                                
+  Bases de Datos No Relacionales / Estructura:                                  
+                                                                                
+  Enfoque en bases de datos no relacionales (NoSQL).                            
+                                                                                
+  Uso estricto de JSON Schema para blindar y estructurar la base de datos.      
+                                                                                
+  Diseños con jerarquías u objetos anidados en lugar de llaves foráneas         
+  tradicionales (foreign keys).                                                 
+                                                                                
+  2. Condiciones y Requisitos del Proyecto Final                                
+     Diseño y Coherencia Visual: Las diferentes miniaplicaciones internas del   
+  proyecto deben integrarse visualmente entre sí, manteniendo el mismo aspecto, 
+  paleta de colores y sentido estético general.                                 
+                                                                                
+  Funcionalidad e Integración:                                                  
+                                                                                
+  El sistema debe ser completamente funcional.                                  
+                                                                                
+  Las aplicaciones deben comunicarse e integrarse (por ejemplo, si se crea un   
+  registro en un módulo —como un usuario o cliente—, este debe poder            
+  reutilizarse y visualizarse correctamente en otro módulo dependiente —como    
+  facturación— sin necesidad de recrearlo).                                     
+                                                                                
+  Estructura y Complejidad del Modelo:                                          
+                                                                                
+  Se penalizan diseños excesivamente simplistas (como utilizar solo 2 o 3       
+  clases/colecciones para todo el aplicativo).                                  
+                                                                                
+  La base de datos debe tener sentido lógico, estar bien construida y contar    
+  obligatoriamente con validación mediante JSON Schema.                         
+                                                                                
+  Alcance Mínimo (Pantallas): El mínimo requerido son 6 pantallas CRUD por      
+  aplicación (de forma individual), abarcando operaciones de creación, edición, 
+  actualización y eliminación.                                                  
+
+  Read 1 file, ran 4 shell commands (ctrl+o to expand)
+
+● Revisé el proyecto contra los requisitos de clase. No cambié ningún archivo.
+  Lo que más pesa en la nota es que no hay validación con JSON Schema en ninguna
+  parte del proyecto. Además falta forms.py y varias apps no llegan a las 6
+  pantallas CRUD.
+
+  ✅ Lo que ya cumple
+
+  - Django y MongoDB (NoSQL): djongo/pymongo con la conexión en
+    MarketHub/conexion.py.
+  - Documentos anidados en vez de llaves foráneas: Producto.categoria,
+    Orden.usuario, Orden.items[], Usuario.direccion y CarritoCompras.items[] son
+    subdocumentos. Esto está bien hecho.
+  - Integración entre apps: el usuario que se registra se reutiliza en el
+    carrito y en las órdenes. Las categorías se usan en productos y los
+    productos en el carrito y las órdenes. El stock se descuenta al comprar y se
+    devuelve al cancelar.
+  - Coherencia visual: las 18 plantillas extienden productos/base.html, así que
+    todas comparten paleta y menú.
+  - Captura de datos de formularios con request.POST / request.GET en las
+    vistas.
+
+  ❌ Lo que falta
+
+  1. JSON Schema (obligatorio)
+
+  No hay ningún $jsonSchema, create_collection(validator=...) ni collMod. Hoy
+  MongoDB acepta cualquier documento. Hay que crear un validador para cada
+  colección (usuarios, categorias, productos, ordenes, carritocompras) con:
+  - required, bsonType y enum (para rol y estado), minimum (para precio, stock y
+    cantidad) y pattern (para email).
+  - Los subdocumentos validados como object y array con sus propias properties.
+
+  Lo más sencillo es un script tipo crear_esquemas.py que corra antes de
+  datos_prueba.py en el Dockerfile.
+
+  2. forms.py
+
+  En clase se mencionó un forms.py para manejar los formularios, y el proyecto
+  no tiene ninguno. Toda la validación está a mano en las vistas, con
+  request.POST.get(...) y cadenas de if/elif. Habría que crear las clases
+  forms.Form y usarlas en las vistas.
+
+  3. Mínimo de 6 pantallas CRUD por app
+
+  ┌────────────┬─────────────────────────────┬──────────────────────────────┐
+  │    App     │     Pantallas actuales      │            Faltan            │
+  ├────────────┼─────────────────────────────┼──────────────────────────────┤
+  │            │ ingresar, registro, lista,  │ Justo en el mínimo, pero el  │
+  │ usuarios   │ detalle, editar, desactivar │ admin no puede crear         │
+  │            │  (6)                        │ usuarios (el registro solo   │
+  │            │                             │ crea clientes)               │
+  ├────────────┼─────────────────────────────┼──────────────────────────────┤
+  │ productos  │ catálogo, lista, crear,     │ Al menos 1, p. ej. el        │
+  │            │ editar, desactivar (5)      │ detalle del producto         │
+  ├────────────┼─────────────────────────────┼──────────────────────────────┤
+  │            │ carrito, lista, detalle,    │                              │
+  │ ordenes    │ cancelar (4; el cambio de   │ Al menos 2                   │
+  │            │ estado está dentro del      │                              │
+  │            │ detalle)                    │                              │
+  ├────────────┼─────────────────────────────┼──────────────────────────────┤
+  │ categorias │ lista, crear, editar,       │ Al menos 2, p. ej. el        │
+  │            │ eliminar (4)                │ detalle con sus productos    │
+  └────────────┴─────────────────────────────┴──────────────────────────────┘
+
+  4. Modelo de datos algo simple
+
+  Son 5 colecciones. Pasa el mínimo de 2–3, pero queda justo. Opciones que
+  encajan con un ecommerce y además suman pantallas: reseñas (embebidas en el
+  producto), pagos, cupones/descuentos, proveedores o direcciones múltiples por
+  usuario.
+
+  ⚠️ Problemas de integración y consistencia
+
+  - Editar una categoría no actualiza la copia embebida en los productos
+    (categorias/views.py:447). Si cambias el nombre, los productos siguen
+    mostrando el viejo.
+  - Eliminar una categoría la borra de verdad (categorias/views.py:502). Los
+    productos quedan apuntando a una categoría que ya no existe. Las demás apps
+    desactivan en vez de borrar, así que convendría validar o desactivar aquí
+    también.
+  - Categorías usa el ORM de djongo y las demás apps usan pymongo directo.
+    Funciona, pero se ve inconsistente al presentar.
+  - Las búsquedas son por coincidencia exacta (Q(nombre=busqueda),
+    filtro['nombre'] = busqueda). Una búsqueda parcial con $regex / icontains
+    funcionaría mejor.
+  - El carrito muestra un precio y la orden cobra otro: el carrito guarda el
+    precio de cuando se agregó el producto, pero carrito_finalizar usa el precio
+    actual. El total que ve el cliente puede no coincidir con el de la orden.
+  - No hay página de inicio ni dashboard, y las plantillas base viven dentro de
+    productos/. Lo más limpio sería moverlas a una carpeta templates/ global.
+
+  Orden sugerido
+
+  1. JSON Schema (es obligatorio y lo más fácil de que penalicen).
+  2. Pantallas faltantes en categorías, órdenes y productos.
+  3. Una o dos colecciones más.
+  4. forms.py.
+  5. Arreglar la propagación de la categoría a los productos.
+
+  Por el historial de git, categorías y productos los trabajó otro compañero.
+  Según lo que tengo guardado, antes de tocar sus archivos te pregunto. ¿Por
+  cuál quieres empezar? Puedo arrancar con los esquemas JSON Schema, que no
+  tocan el código de nadie.
+
+✻ Crunched for 52s · done miércoles 8:26 p.m.
+
+※ recap: Revisé MarketHub contra los requisitos de clase sin cambiar nada; lo más grave es que falta la validación con JSON Schema, además de forms.py y algunas pantallas CRUD. Siguiente paso: dime si empiezo creando los esquemas JSON Schema. (disable recaps in /config)
+
+❯ traje unos cambios de mi companero, revisa el estado del proyecto ahora       
+
+  Ran 4 shell commands (ctrl+o to expand)
+
+● Los contenedores están corriendo, así que hago una prueba rápida de las
+  pantallas.
+
+  Ran 2 shell commands (ctrl+o to expand)
+
+● Con los cambios de tu compañero (commit 223acbe forms) ya se cumplen las 6
+  pantallas por app, el forms.py y la coherencia visual. Sigue faltando el JSON 
+  Schema, que es obligatorio.
+
+  Lo probé en los contenedores que tienes corriendo: manage.py check no reporta
+  errores, y entrando como admin las 23 pantallas y el CSS responden 200. No
+  toqué ningún archivo.
+
+  Qué cambió
+
+  Pantallas CRUD: las cuatro apps quedan en 6.
+
+  ┌────────────┬────────────────────────────────────────────────┬───────────┐
+  │    App     │                   Pantallas                    │  Estado   │
+  ├────────────┼────────────────────────────────────────────────┼───────────┤
+  │ categorias │ lista, crear, detalle, editar, desactivar,     │ ✅ 6      │
+  │            │ eliminar                                       │           │
+  ├────────────┼────────────────────────────────────────────────┼───────────┤
+  │ productos  │ lista, crear, detalle, editar, desactivar,     │ ✅ 6      │
+  │            │ catálogo                                       │           │
+  ├────────────┼────────────────────────────────────────────────┼───────────┤
+  │ ordenes    │ carrito, confirmar compra, lista,              │ ✅ 6      │
+  │            │ detalle/estado, cancelar, eliminar             │           │
+  ├────────────┼────────────────────────────────────────────────┼───────────┤
+  │ usuarios   │ ingresar, registro, lista, detalle, editar,    │ ✅ 6      │
+  │            │ desactivar                                     │ (justo)   │
+  └────────────┴────────────────────────────────────────────────┴───────────┘
+
+  forms.py: ahora existe en las 4 apps (FormularioCategoria, FormularioProducto,
+  FormularioDireccion, FormularioRegistro, etc.).
+
+  Diseño: hay una hoja de estilos compartida,
+  productos/static/productos/estilos.css, con tipografía propia, y todas las
+  plantillas la heredan desde base.html.
+
+  Lo que sigue faltando
+
+  1. JSON Schema ❌
+
+  Lo revisé directamente en MongoDB: ninguna colección tiene validador
+  (usuarios, categorias, productos, ordenes y carritocompras dan todas
+  validator: null). Sigue siendo lo más urgente.
+
+  2. Los formularios solo se usan para dibujar el HTML
+
+  En ningún lado se llama a is_valid() ni a cleaned_data. Los forms solo pintan
+  los campos con initial=..., y la validación sigue a mano con request.POST.get
+  e if/elif. Si el profesor revisa cómo se procesan los formularios, se nota. Lo
+  ideal es usar FormularioX(request.POST), if formulario.is_valid(): y
+  formulario.cleaned_data[...].
+
+  3. Contradicción con descripcion.txt
+
+  La descripción dice "las ordenes no se eliminan sino que se cancelan", pero
+  ahora existe orden_eliminar (ordenes/views.py:393), que borra la orden de
+  verdad (aunque solo si está cancelada). Hay que actualizar la descripción o
+  justificar la pantalla, porque si el profesor lee ambas cosas no cuadran.
+
+  4. Plantillas que no se usan
+
+  - productos/producto_crear.html y producto_editar.html se crearon, pero las
+    vistas siguen usando producto_form.html (productos/views.py:93 y :172).
+  - categorias/categoria_form.html quedó huérfana, porque categorías ahora usa
+    categoria_crear.html y categoria_editar.html.
+
+  No rompen nada, pero conviene usarlas o borrarlas.
+
+  5. Pendientes de la revisión anterior que siguen igual
+
+  - Editar una categoría sigue sin actualizar la copia que tienen embebida los
+    productos.
+  - categoria_eliminar sigue borrando de verdad aunque haya productos que la
+    usan. Ahora existe "desactivar", pero "eliminar" debería bloquearse si hay
+    productos con esa categoría.
+  - Siguen siendo 5 colecciones, un modelo algo justo.
+  - El admin sigue sin pantalla para crear usuarios.
+  - Las búsquedas siguen siendo por coincidencia exacta.
+
+  6. Detalle menor
+
+  Si carrito_finalizar falla (por ejemplo, sin stock), el error aparece en la
+  página del carrito y no en la de confirmar compra, donde el cliente escribió
+  la dirección.
+
+  Todavía tienes sin commitear tus cambios en Dockerfile, datos_prueba.py y
+  descripcion.txt.
+
+  Te recomiendo seguir con el JSON Schema. Puedo hacerlo en un script nuevo
+  (crear_esquemas.py) que corra desde el Dockerfile antes de datos_prueba.py,
+  sin tocar los archivos de tu compañero. ¿Lo hago?
+
+✻ Churned for 1m 24s · done miércoles 9:28 p.m.
+
+※ recap: Estás revisando MarketHub contra los requisitos de clase: tras los cambios de tu compañero, las cuatro apps ya tienen 6 pantallas CRUD y forms.py, pero falta la validación JSON Schema, que es obligatoria. Siguiente paso: confirmarme si creo crear_esquemas.py para agregarla. (disable recaps in /config)
+
+❯ Lo revisé directamente en MongoDB: ninguna colección tiene validador          
+  (usuarios, categorias, productos, ordenes y carritocompras dan todas          
+  validator: null). Sigue siendo lo más urgente. esto donde iria?               
+  ⎿  Interrupted · What should Claude do instead?
+
+❯ Lo revisé directamente en MongoDB: ninguna colección tiene validador          
+  (usuarios, categorias, productos, ordenes y carritocompras dan todas          
+  validator: null). Sigue siendo lo más urgente. esto donde iria?               
+                                                                                
+  En ningún lado se llama a is_valid() ni a cleaned_data. Los forms solo pintan 
+  los campos con initial=..., y la validación sigue a mano con                  
+  request.POST.get e if/elif. Si el profesor revisa cómo se procesan los        
+  formularios, se nota. Lo ideal es usar FormularioX(request.POST), if          
+  formulario.is_valid(): y formulario.cleaned_data[...]. esto no lo vimos en    
+  clase, no podemos usar eso 3. Contradicción con descripcion.txt               
+                                                                                
+  La descripción dice "las ordenes no se eliminan sino que se cancelan", pero   
+  ahora existe orden_eliminar (ordenes/views.py:393), que borra la orden de     
+  verdad (aunque solo si está cancelada). Hay que actualizar la descripción o   
+  justificar la pantalla, porque si el profesor lee ambas cosas no cuadran.     
+  eliminamos todo lo que sea eliminar ordenes o usuarios, o mejor modificamos   
+  esto para que sea cancelacion o desactivacion                                 
+                                                                                
+  - productos/producto_crear.html y producto_editar.html se crearon, pero las   
+  vistas siguen usando producto_form.html (productos/views.py:93 y :172).       
+  - categorias/categoria_form.html quedó huérfana, porque categorías ahora usa  
+  categoria_crear.html y categoria_editar.html. lo que no se usa lo borramos    
+  - Editar una categoría sigue sin actualizar la copia que tienen embebida los  
+  productos. como se podria manejar esto?                                       
+                                                                                
+  6. Detalle menor                                                              
+                                                                                
+  Si carrito_finalizar falla (por ejemplo, sin stock), el error aparece en la   
+  página del carrito y no en la de confirmar compra, donde el cliente escribió  
+  la dirección. ajusta esto                                                     
+                                                                                
+  Recuerda especificamente que no puede llevar comentarios, debe ser como si lo 
+  hubiera un estudiante entonces lo ideal es hacerlo de la forma mas basica y   
+  normal posible, entonces primero hagamos la planeacion de todos los arreglos  
+  que vamos a hacer, y ya cuando yo diga, realizamos la implementacion          
+
+  Recalled 1 memory, wrote 1 memory (ctrl+o to expand)
+
+● Te dejo el plan. No implemento nada hasta que me digas.
+
+  Plan de arreglos
+
+  1. JSON Schema: dónde va
+
+  El JSON Schema no va en views.py ni en models.py. Se le pone a cada colección
+  dentro de MongoDB, y desde ese momento Mongo mismo rechaza los documentos que
+  no cumplan. Por eso basta con correrlo una sola vez al arrancar.
+
+  - Archivo nuevo crear_esquemas.py en la raíz, igual que datos_prueba.py: el
+    mismo encabezado de django.setup() y el db de MarketHub/conexion.py.
+  - Un diccionario de esquema por colección: usuarios, categorias, productos,
+    ordenes y carritocompras. Cada uno lleva:
+    - required con los campos obligatorios.
+    - bsonType: string, int, bool, date, object, array, objectId.
+    - enum para rol (cliente, admin) y estado (pendiente, pagado, …).
+    - minimum para precio (1), stock (0) y cantidad (1).
+    - Los subdocumentos con sus propias properties: direccion, categoria,
+      usuario, items[].producto, direccion_envio.
+    - Los campos que pueden venir vacíos aceptan null: descripcion de la
+      categoría y direccion del usuario.
+  - Para cada colección: si ya existe, se le aplica con db.command('collMod', 
+    ...); si no existe, se crea con db.create_collection(nombre, validator=...).
+    Hay que hacerlo así porque el volumen de Docker ya tiene las colecciones
+    creadas. Para saber si existe basta con un if nombre in 
+    db.list_collection_names(), sin try/except.
+  - Dockerfile: agregar python crear_esquemas.py && antes de python 
+    datos_prueba.py.
+  - Para comprobarlo: correr datos_prueba.py y recorrer las pantallas para ver
+    que nada válido se rechace, y probar a mano un insert inválido para ver que
+    Mongo lo bloquee.
+
+  2. Formularios
+
+  Se quedan como están. Solo pintan los campos con initial=, que es lo que
+  vieron en clase, y la validación sigue a mano. Ya lo dejé anotado para no
+  volver a proponerlo.
+
+  3. Nada se elimina, solo se cancela o se desactiva
+
+  - Órdenes: quitar orden_eliminar (la vista, la URL, orden_eliminar.html y el
+    enlace en orden_detalle.html).
+    - El problema es que órdenes quedaría con 5 pantallas. Para mantener 6,
+      propongo sacar el cambio de estado a su propia pantalla (orden_estado.html
+      en /ordenes/<id>/estado/). Hoy ese formulario está metido en el detalle.
+      La vista orden_cambiar_estado ya existe; solo falta que muestre su página
+      con el GET.
+  - Usuarios: ya solo se desactivan, así que aquí no hay cambios.
+  - Categorías: tienen tanto desactivar como eliminar. Si quito eliminar, quedan
+    en 5 pantallas. Propongo dejarla pero bloquearla si algún producto usa la 
+    categoría (con un mensaje de error), así no queda ningún producto apuntando
+    a una categoría que no existe. Otra opción es reemplazarla por otra
+    pantalla. Dime cuál prefieres.
+
+  4. Borrar lo que no se usa
+
+  - productos/templates/productos/producto_crear.html
+  - productos/templates/productos/producto_editar.html
+  - categorias/templates/categorias/categoria_form.html
+  - ordenes/templates/ordenes/orden_eliminar.html (por el punto 3)
+
+  5. Que editar una categoría actualice los productos
+
+  En categoria_editar, justo después de categoria.save(), se busca la categoría
+  en Mongo para obtener su _id y se actualizan todos los productos que la tienen
+  embebida:
+  doc = db.categorias.find_one({'id': categoria.id})
+  db.productos.update_many(
+      {'categoria._id': doc['_id']},
+      {'$set': {'categoria.nombre': nombre, 'categoria.descripcion':
+  descripcion}}
+  )
+  En clase esto se conoce como mantener la consistencia de los datos
+  desnormalizados. Al presentar es un buen argumento de por qué se embebe y cómo
+  se mantiene. A las órdenes no se les aplica, porque deben guardar los datos
+  como estaban al momento de la compra.
+
+  6. Que el error de compra salga en la pantalla de confirmar
+
+  En ordenes/views.py:
+  - Crear mostrar_confirmar(request, usuario, error, direccion), igual que el
+    mostrar_carrito que ya existe. Arma la tabla del carrito y el
+    FormularioDireccion(initial=direccion), y renderiza carrito_confirmar.html.
+  - carrito_confirmar lo llama con error=None y la dirección del usuario.
+  - En carrito_finalizar, todos los return mostrar_carrito(...) pasan a ser
+    return mostrar_confirmar(request, usuario, '...', {'calle': calle, 'ciudad':
+    ciudad}), para no perder la dirección que escribió el cliente.
+
+  7. Otros archivos
+
+  - descripcion.txt: revisar que siga diciendo que las órdenes no se eliminan y
+    agregar la pantalla de cambio de estado.
+
+  En todo el código: sin comentarios, nombres en español, solo if/for, y sin
+  try/except en el código nuevo.
+
+  ⚠️ Archivos de tu compañero
+
+  Los puntos 3 (categorías), 4 y 5 tocan archivos de él: categorias/views.py,
+  las plantillas de categorias/ y las de productos/. Los puntos 1, 3 (órdenes) y
+  6 son de tu parte o archivos nuevos.
+
+  Antes de empezar necesito que me confirmes dos cosas:
+  1. ¿Las pantallas de órdenes y de categorías las resolvemos como propongo en
+     el punto 3?
+  2. ¿Le aviso a tu compañero o te parece bien que toque sus archivos de
+     categorías y productos?
+
+✻ Cooked for 48s · done miércoles 9:37 p.m.
+
+※ recap: Estamos ajustando MarketHub para cumplir los requisitos de clase, y el plan de arreglos (JSON Schema, quitar eliminar órdenes, borrar plantillas sin uso, propagar categorías, error en confirmar compra) ya está listo. Falta que confirmes las opciones del punto 3 y si puedo tocar los archivos de tu compañero. (disable recaps in /config)
+
+❯ pero los datos de prueba es algo que yo tengo en el local, en este caso como  
+  se crean las colecciones, manualmente, o se crean con una migracion, estamos  
+  usando un orm no?                                                             
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● Sí, usan ORM (djongo), pero solo a medias. Esto cambia dónde conviene poner el
+  JSON Schema.
+
+  Cómo se crean hoy las colecciones
+
+  1. Con la migración. Cada app tiene su migrations/0001_initial.py con un
+     CreateModel, y el db_table de cada modelo dice el nombre de la colección:
+     usuarios, categorias, productos, ordenes, carritocompras. Al correr python 
+     manage.py migrate, que el Dockerfile ya hace, djongo crea esas colecciones
+     vacías en Mongo. Nadie las crea a mano.
+  2. datos_prueba.py solo inserta datos en colecciones que ya existen. No crea
+     nada de estructura.
+  3. Igual quedan sin validación. Los modelos describen los campos, pero djongo
+     no le pone un $jsonSchema a la colección; lo confirmé en Mongo y todas
+     tienen validator: null. Además, casi todas las vistas usan pymongo directo
+     (db.productos.insert_one(...)), así que ni siquiera pasan por el modelo.
+     Solo categorías usa el ORM.
+
+  Entonces el JSON Schema va mejor en una migración
+
+  Cambio el punto 1 del plan. En vez de un script aparte, el JSON Schema va en
+  una migración nueva por app:
+
+  - usuarios/migrations/0002_esquema.py → usuarios
+  - categorias/migrations/0002_esquema.py → categorias
+  - productos/migrations/0002_esquema.py → productos
+  - ordenes/migrations/0002_esquema.py → ordenes y carritocompras
+
+  Cada una tiene un migrations.RunPython con una función que arma el diccionario
+  del esquema y se lo aplica a la colección con db.command('collMod', 
+  'productos', validator={'$jsonSchema': {...}}). Como la 0001 ya creó la
+  colección, no hace falta revisar si existe.
+
+  Ventajas:
+  - Corre solo con migrate, que ya está en el Dockerfile, así que no hay que
+    ejecutar nada a mano ni depende de datos_prueba.py.
+  - Llega a tus compañeros por git: cuando hagan pull y levanten el proyecto, la
+    migración pendiente se aplica en su base local.
+  - Cada esquema queda en su app, junto al modelo que valida. Eso muestra mejor
+    el diseño al presentar.
+  - Las migraciones 0002 no son "initial", así que --fake-initial no las salta y
+    se ejecutan de verdad.
+
+  Un detalle: el validador revisa los documentos que se insertan o actualizan
+  desde ese momento. Los que ya están en tu base no se revisan hasta que alguien
+  los modifique. Como los datos de prueba se armaron con la misma estructura,
+  no debería haber problema, y lo probaría recorriendo todas las pantallas.
+
+  El resto del plan (puntos 2 al 7) queda igual. Cuando me digas, arranco, y
+  para eso necesito tus respuestas a las dos preguntas pendientes: cómo
+  resolvemos las pantallas de órdenes y categorías, y si puedo tocar los
+  archivos de tu compañero (ahora también para sus migraciones 0002).
+
+✻ Cooked for 24s · done miércoles 9:46 p.m.
+
+※ recap: Estamos dejando MarketHub listo para cumplir los requisitos del proyecto, y el plan de arreglos ya está armado, con el JSON Schema en migraciones 0002. Para empezar necesito que respondas cómo resolvemos las pantallas de órdenes y categorías, y si puedo tocar los archivos de tu compañero. (disable recaps in /config)
+
+❯ muestrame donde categoria esta usando el ORM                                  
+                                                                                
+  quiero ssaber las demas cual estan usando, cual es la diferencia              
+                                                                                
+  no entiendo lo del json schema entonces, se supone, que se aplica             
+  directamente al mongo, pero como lo podemos manejar en el codigo o en la      
+  migracion, es decir, tener el codigo de la migracion, o cual es tu plan para  
+  que el json schema quede dentro del proyecto, una vez yo lo levante con       
+  docker tenga los schemas indicados en la base de datos                        
+                                                                                
+  ahora, esto aplicaria para todas las aplicaciones, recuerda que debe ser      
+  basico lo que vamos a hacer, asi que ayudame con el planteamiento y hsta que  
+  no acepte no ejecutas el codigo                                               
+
+  Searched for 2 patterns (ctrl+o to expand)
+
+● 1. Dónde usa el ORM categorías
+
+  Solo categorias/views.py hace consultas con el ORM: trabaja con el modelo
+  Categoria y sus métodos .objects.
+
+  ┌────────────────────────┬────────────────────────────────────────────────┐
+  │         Línea          │                     Código                     │
+  ├────────────────────────┼────────────────────────────────────────────────┤
+  │ categorias/views.py:18 │ Categoria.objects.all()                        │
+  ├────────────────────────┼────────────────────────────────────────────────┤
+  │ categorias/views.py:28 │ Categoria.objects.count()                      │
+  ├────────────────────────┼────────────────────────────────────────────────┤
+  │ categorias/views.py:50 │ Categoria.objects.filter(nombre=nombre).exists │
+  │                        │ ()                                             │
+  ├────────────────────────┼────────────────────────────────────────────────┤
+  │ categorias/views.py:53 │ Categoria.objects.create(...)                  │
+  ├────────────────────────┼────────────────────────────────────────────────┤
+  │ categorias/views.py:77 │ Categoria.objects.get(id=id)                   │
+  │ , 123, 138, 158        │                                                │
+  ├────────────────────────┼────────────────────────────────────────────────┤
+  │ categorias/views.py:99 │ categoria.save()                               │
+  │ , 144                  │                                                │
+  ├────────────────────────┼────────────────────────────────────────────────┤
+  │ categorias/views.py:16 │ categoria.delete()                             │
+  │ 3                      │                                                │
+  └────────────────────────┴────────────────────────────────────────────────┘
+
+  datos_prueba.py:32 también crea las categorías con
+  Categoria.objects.create(...).
+
+  2. Las demás apps usan pymongo directo
+
+  usuarios, productos y ordenes importan db desde MarketHub/conexion.py y le
+  hablan a Mongo sin pasar por el modelo. Entre las tres suman 47 llamadas a
+  pymongo:
+
+  db.productos.find_one({'id': id})
+  db.productos.insert_one({...})
+  db.productos.update_one({'id': id}, {'$set': {...}})
+
+  Sus modelos existen, pero en las vistas solo se usan para leer las listas de
+  opciones: Usuario.ROL_CHOICES en usuarios/views.py y Orden.ESTADOS en
+  ordenes/views.py. Ninguna consulta pasa por ellos.
+
+  La diferencia:
+  - ORM (categorías): se trabaja con objetos Python (categoria.nombre = ...,
+    categoria.save()) y djongo traduce eso a operaciones de Mongo. Es lo mismo
+    que se haría con una base SQL.
+  - pymongo (las demás): se escriben los documentos como diccionarios y las
+    consultas en el lenguaje de Mongo ($set, $inc, 'usuario._id'). Es más
+    natural para documentos anidados, como los items de la orden o la categoria
+    dentro del producto, y por eso se usó ahí.
+
+  Con ninguno de los dos caminos Mongo valida nada por sí solo. Eso es lo que
+  agrega el JSON Schema.
+
+  3. Cómo queda el JSON Schema dentro del proyecto
+
+  El esquema vive en Mongo, pero hay que decírselo a Mongo con un comando. Ese
+  comando lo dejamos escrito en el proyecto para que corra solo al levantar
+  Docker.
+
+  Qué pasa al levantar
+
+  1. docker compose up arranca el contenedor y el Dockerfile corre python 
+     manage.py migrate.
+  2. Django revisa la tabla django_migrations para ver qué migraciones faltan.
+     - La 0001_initial (que ya existe) crea la colección vacía.
+     - La 0002_esquema (la nueva) le pone el JSON Schema a esa colección.
+  3. Django anota que la 0002 ya corrió, así que la próxima vez no se repite.
+
+  No hay que hacer nada a mano. Funciona igual con una base nueva o con tu
+  volumen actual.
+
+  Cómo se ve la migración (ejemplo de productos)
+
+  El mismo patrón se repite en cada app, sin comentarios y de la forma más
+  básica:
+
+  from django.db import migrations
+  from MarketHub.conexion import db
+
+
+  def crear_esquema(apps, schema_editor):
+      esquema = {
+          'bsonType': 'object',
+          'required': ['id', 'nombre', 'precio', 'stock', 'categoria',
+  'activo'],
+          'properties': {
+              'id': {'bsonType': 'int'},
+              'nombre': {'bsonType': 'string'},
+              'precio': {'bsonType': 'int', 'minimum': 1},
+              'stock': {'bsonType': 'int', 'minimum': 0},
+              'activo': {'bsonType': 'bool'},
+              'categoria': {
+                  'bsonType': 'object',
+                  'required': ['_id', 'nombre'],
+                  'properties': {
+                      '_id': {'bsonType': 'objectId'},
+                      'nombre': {'bsonType': 'string'},
+                      'descripcion': {'bsonType': ['string', 'null']},
+                  },
+              },
+          },
+      }
+      db.command('collMod', 'productos', validator={'$jsonSchema': esquema})
+
+
+  class Migration(migrations.Migration):
+
+      dependencies = [
+          ('productos', '0001_initial'),
+      ]
+
+      operations = [
+          migrations.RunPython(crear_esquema),
+      ]
+
+  El diccionario esquema es el JSON Schema. Es lo que muestras al profesor:
+  campos obligatorios, tipos, mínimos y el subdocumento categoria.
+
+  Los cuatro archivos
+
+  Archivo nuevo: usuarios/migrations/0002_esquema.py
+  Colecciones: usuarios
+  Qué valida: email (string), rol ∈ {cliente, admin}, activo bool, direccion
+    objeto {calle, ciudad} o null
+  ────────────────────────────────────────
+  Archivo nuevo: categorias/migrations/0002_esquema.py
+  Colecciones: categorias
+  Qué valida: nombre string, descripcion string o null, activo bool
+  ────────────────────────────────────────
+  Archivo nuevo: productos/migrations/0002_esquema.py
+  Colecciones: productos
+  Qué valida: El ejemplo de arriba
+  ────────────────────────────────────────
+  Archivo nuevo: ordenes/migrations/0002_esquema.py
+  Colecciones: ordenes, carritocompras
+  Qué valida: estado ∈ {pendiente, pagado, enviado, entregado, cancelado},
+    usuario objeto, items arreglo de {producto, precio_unitario, cantidad ≥ 1},
+    total ≥ 0, fecha date, direccion_envio objeto
+
+  No hay que tocar el Dockerfile, porque ya corre migrate.
+
+  Cómo lo comprobamos después
+
+  1. Levantar con Docker y revisar en Mongo que cada colección tenga su
+     validador (antes daban validator: null).
+  2. Recorrer las pantallas creando y editando para ver que nada válido se
+     rechace.
+  3. Intentar un insert inválido a mano, por ejemplo un producto con precio: -5,
+     y ver que Mongo lo bloquee.
+
+  Hay otra forma posible: un script suelto que se corre desde el Dockerfile,
+  como datos_prueba.py. La descarto porque es más fácil que se pierda o que
+  alguien no lo corra. Con la migración, el esquema queda versionado en cada app
+  junto a su modelo.
+
+  No ejecuto nada hasta que aceptes. Siguen pendientes tres cosas:
+  1. ¿Te sirve este planteamiento del JSON Schema con migraciones?
+  2. ¿Cómo resolvemos las pantallas de órdenes y categorías? Propuse sacar el
+     cambio de estado a su propia pantalla, y dejar el eliminar de categorías
+     bloqueado cuando la categoría tenga productos.
+  3. ¿Puedo tocar los archivos de tu compañero (categorias/ y productos/),
+     incluidas sus migraciones 0002?
+
+✻ Crunched for 38s · done miércoles 11:11 p.m.
+
+※ recap: Estamos ajustando MarketHub a los requisitos de clase y ya está listo el plan, con el JSON Schema en migraciones 0002 por app. Falta que lo apruebes y me digas si puedo tocar los archivos de tu compañero para empezar a implementar.
+
+❯ 1. lo ideal es normalizar el resto, que todos usen lo mismo, como seria lo    
+  mismo esto, y por ahora elimina datos de prueba                               
+                                                                                
+  2. como las demas usan pymongo, has el cambio como se indica en el primer     
+  punto                                                                         
+                                                                                
+  3.                                                                            
+  db.createCollection("categorias", {  validator: {                             
+      $jsonSchema: {                                                            
+        bsonType: "object",                                                     
+        required: ["nombre ", " activo"],                                       
+        properties:   {                                                         
+          _id: {                                                                
+            bsonType: "objectId"                                                
+            },                                                                  
+          nombre:  {                                                            
+            bsonType: "string"                                                  
+           },                                                                   
+          descripcion:{                                                         
+            bsonType: "string"                                                  
+          } ,                                                                   
+          activo: {                                                             
+            bsonType: "bool"                                                    
+           }                                                                    
+        },                                                                      
+        minProperties: 2,                                                       
+        maxProperties: 4,                                                       
+         additionalProperties: false                                            
+   }                                                                            
+  }                                                                             
+  })                                                                            
+                                                                                
+                                                                                
+  2. Coleccion de usuarios                                                      
+                                                                                
+  db.createCollection("usuarios", { validator: {                                
+      $jsonSchema:   {                                                          
+        bsonType: "object",                                                     
+        required: ["email", "password", "nombre", "rol", "activo"],             
+        properties:  {                                                          
+          _id: {                                                                
+            bsonType: "objectId"                                                
+            },                                                                  
+          email:  {                                                             
+            bsonType: "string",                                                 
+            pattern: "^.+@.+\\..+$"                                             
+           },                                                                   
+          password:  {                                                          
+            bsonType: "string"                                                  
+            },                                                                  
+          nombre:  {                                                            
+            bsonType: "string"                                                  
+            },                                                                  
+          rol:  {                                                               
+           enum: ["cliente", "admin"]                                           
+            },                                                                  
+          activo: {                                                             
+            bsonType: "bool"                                                    
+            },                                                                  
+           direccion: {                                                         
+            bsonType: "object",                                                 
+            properties: {                                                       
+              calle: { bsonType: "string" },                                    
+              ciudad: { bsonType: "string" }                                    
+            }                                                                   
+         }                                                                      
+        },                                                                      
+        minProperties: 5,                                                       
+        maxProperties: 7,                                                       
+        additionalProperties: false                                             
+     }                                                                          
+    }                                                                           
+  })                                                                            
+                                                                                
+                                                                                
+  3. Coleccion de productos                                                     
+                                                                                
+  db.createCollection("productos", {validator: {                                
+      $jsonSchema:   {                                                          
+        bsonType: "object",                                                     
+        required: ["nombre ", "precio", "stock", "categoria_id", "activo"],     
+        properties:     {                                                       
+         _id: {                                                                 
+            bsonType: "objectId"                                                
+           },                                                                   
+         nombre: {                                                              
+            bsonType: "string"                                                  
+        },                                                                      
+          precio: {                                                             
+                bsonType: "int",                                                
+            },                                                                  
+           stock: {                                                             
+            bsonType: "int",                                                    
+          } ,                                                                   
+           categoria_id: {                                                      
+            bsonType: "objectId"                                                
+          },                                                                    
+          activo: {                                                             
+               bsonType: "bool"                                                 
+        }                                                                       
+        },                                                                      
+        minProperties: 5,                                                       
+        maxProperties: 6,                                                       
+        additionalProperties: false                                             
+     }                                                                          
+    }                                                                           
+  }                                                                             
+  )                                                                             
+                                                                                
+                                                                                
+  4. Coleccion de carrito de compras                                            
+                                                                                
+  db.createCollection("carritocompras ", { validator:   {                       
+      $jsonSchema: {                                                            
+         bsonType: "object",                                                    
+        required: ["usuario_id", "items"],                                      
+        properties: {                                                           
+             _id: {                                                             
+            bsonType: "objectId"                                                
+           },                                                                   
+           usuario_id: {                                                        
+            bsonType: "objectId"                                                
+          },                                                                    
+           actualizado_en: {                                                    
+            bsonType: "date"                                                    
+          },                                                                    
+          items: {                                                              
+            bsonType: "array",                                                  
+           items: {                                                             
+              bsonType: "object",                                               
+              required: ["producto_id", "cantidad"],                            
+              properties: {                                                     
+                producto_id: {                                                  
+                  bsonType: "objectId"                                          
+                },                                                              
+                cantidad: {                                                     
+                  bsonType: "int"                                               
+                }                                                               
+              }                                                                 
+            }                                                                   
+          }                                                                     
+        },                                                                      
+        minProperties: 2,                                                       
+        maxProperties: 4,                                                       
+        additionalProperties: false                                             
+    }                                                                           
+  }                                                                             
+  })                                                                            
+                                                                                
+  5. Coleccion de ordenes                                                       
+                                                                                
+  db.createCollection("ordenes", {                                              
+    validator: {                                                                
+      $jsonSchema: {                                                            
+        bsonType: "object",                                                     
+        required: ["usuario_id", "fecha", "estado", "items", "total"],          
+        properties: {                                                           
+          _id: {                                                                
+            bsonType: "objectId"                                                
+          },                                                                    
+          usuario_id: {                                                         
+            bsonType: "objectId"                                                
+          },                                                                    
+          fecha: {                                                              
+            bsonType: "date"                                                    
+          },                                                                    
+          estado: {                                                             
+            enum: ["pendiente", "pagado", "enviado", "entregado", "cancelado"]  
+                                                                                
+          },                                                                    
+          items: {                                                              
+            bsonType: "array",                                                  
+            items: {                                                            
+              bsonType: "object",                                               
+              required: ["producto_id", "nombre", "precio_unitario",            
+  "cantidad"],                                                                  
+              properties: {                                                     
+                producto_id: { bsonType: "objectId" },                          
+                nombre: { bsonType: "string" },                                 
+                precio_unitario: { bsonType: "int"},                            
+                cantidad: { bsonType: "int" }                                   
+              }                                                                 
+            }                                                                   
+          },                                                                    
+          total: {                                                              
+            bsonType: "int",                                                    
+          },                                                                    
+          direccion_envio: {                                                    
+            bsonType: "object",                                                 
+            required: ["calle", "ciudad"],                                      
+            properties: {                                                       
+              calle: { bsonType: "string" },                                    
+              ciudad: { bsonType: "string" }                                    
+            }                                                                   
+          }                                                                     
+        },                                                                      
+        minProperties: 5,                                                       
+        maxProperties: 7,                                                       
+        additionalProperties: false                                             
+      }                                                                         
+    }                                                                           
+  })                                                                            
+  estos son los jsonschema que usaria el proyecto                               
+                                                                                
+  lo ideal es no usar scripts y demas, asi que vamos a seguir puliendo el       
+  camino que dijimos                                                            
+                                                                                
+  tambien necesito que revises si con el cambio de pymongo y los jsonschema no  
+  fallaria nada de lo que ya esta aplicado                                      
+                                                                                
+  recuerda, debemos usar lo mas basico posible, entonces has el plan segun lo   
+  que te he dicho y muestrame                                                   
+
+● Antes del plan, lo más importante: los JSON Schema que pegaste no son 
+  compatibles con el código actual. Si se aplican tal cual, casi todas las
+  pantallas que guardan algo fallarían. Abajo explico por qué y qué propongo.
+
+  Qué fallaría con esos esquemas tal cual
+
+  A. Errores de escritura en los esquemas (fallan siempre, con cualquier
+  código):
+  - En categorias y productos, required tiene "nombre " y " activo" con
+    espacios. Mongo exigiría un campo literalmente llamado "nombre ", así que
+    rechazaría todos los inserts.
+  - "carritocompras " tiene un espacio al final del nombre, así que crearía otra
+    colección distinta a la que usa el código.
+
+  B. Falta el campo id en todos los esquemas. Todo el proyecto usa un id
+  numérico (siguiente_id) para las URLs (/productos/3/editar/) y las búsquedas
+  (find_one({'id': id})). Con additionalProperties: false, Mongo rechaza
+  cualquier documento que traiga id. Hay que agregarlo a properties y subir
+  maxProperties en 1.
+
+  C. La estructura no coincide: los esquemas usan referencias y el código usa 
+  documentos anidados.
+
+  ┌────────────────┬─────────────────────────┬──────────────────────────────┐
+  │   Colección    │   El esquema pegado     │     El código guarda hoy     │
+  │                │         espera          │                              │
+  ├────────────────┼─────────────────────────┼──────────────────────────────┤
+  │ productos      │ categoria_id (solo el   │ categoria: {_id, nombre,     │
+  │                │ id)                     │ descripcion}                 │
+  ├────────────────┼─────────────────────────┼──────────────────────────────┤
+  │                │ usuario_id,             │ usuario: {_id, email,        │
+  │ carritocompras │ items[{producto_id,     │ nombre}, items[{producto:    │
+  │                │ cantidad}]              │ {_id, nombre, precio},       │
+  │                │                         │ cantidad}]                   │
+  ├────────────────┼─────────────────────────┼──────────────────────────────┤
+  │                │ usuario_id,             │ usuario: {...},              │
+  │ ordenes        │ items[{producto_id,     │ items[{producto: {...},      │
+  │                │ nombre, ...}]           │ precio_unitario, cantidad}]  │
+  └────────────────┴─────────────────────────┴──────────────────────────────┘
+
+  Además, en clase se pidió explícitamente "objetos anidados en lugar de llaves 
+  foráneas". Los esquemas pegados son justo lo contrario, porque cada _id
+  funciona como una llave foránea.
+
+  D. Valores null: cuando el usuario no pone dirección, el código guarda
+  direccion: None, y el esquema solo acepta object.
+
+  E. Email: el esquema exige el patrón ^.+@.+\..+$, pero el código solo revisa
+  que haya un @. Un email como ana@correo pasaría la validación del código y
+  Mongo lo rechazaría. Como no usamos try/except, eso se vería como una página
+  de error 500. La regla general: todo lo que valide el esquema también lo tiene
+  que validar el código antes de guardar.
+
+  Decisión principal: ¿se ajustan los esquemas o el código?
+
+  Opción A (recomendada): ajustar los esquemas al código actual. Se conserva tu
+  estilo (required, minProperties, maxProperties, additionalProperties: false),
+  se corrigen los errores de A, B y D, y se cambian los _id por los objetos
+  anidados. Así se cumple lo de clase y el código de productos, carrito y
+  órdenes casi no cambia.
+
+  Por ejemplo, productos quedaría así:
+  esquema = {
+      'bsonType': 'object',
+      'required': ['id', 'nombre', 'precio', 'stock', 'categoria', 'activo'],
+      'properties': {
+          '_id': {'bsonType': 'objectId'},
+          'id': {'bsonType': 'int'},
+          'nombre': {'bsonType': 'string'},
+          'precio': {'bsonType': 'int'},
+          'stock': {'bsonType': 'int'},
+          'categoria': {
+              'bsonType': 'object',
+              'required': ['_id', 'nombre'],
+              'properties': {
+                  '_id': {'bsonType': 'objectId'},
+                  'nombre': {'bsonType': 'string'},
+                  'descripcion': {'bsonType': 'string'}
+              }
+          },
+          'activo': {'bsonType': 'bool'}
+      },
+      'minProperties': 6,
+      'maxProperties': 7,
+      'additionalProperties': False
+  }
+
+  Opción B: ajustar el código a los esquemas (referencias). Habría que
+  reescribir buena parte de productos, carrito y órdenes. Por ejemplo, para
+  mostrar el nombre de la categoría de cada producto, el email del dueño de cada
+  orden o para buscar órdenes por email, habría que hacer un find_one extra por
+  cada uno. Es mucho más código, va en contra de lo que pidieron en clase, y la
+  ventaja (que la categoría nunca queda desactualizada) se logra igual con el
+  update_many del plan.
+
+  Plan (con la opción A)
+
+  1. Categorías pasa a pymongo
+
+  Así las 4 apps funcionan igual. En categorias/views.py:
+  - from MarketHub.conexion import db, siguiente_id, igual que las otras apps.
+  - Categoria.objects.get(id=id) + try/except pasa a categoria = 
+    db.categorias.find_one({'id': id}) + if not categoria: return redirect(...).
+  - .create(...) pasa a db.categorias.insert_one({'id': 
+    siguiente_id(db.categorias), ...}).
+  - .save() pasa a db.categorias.update_one({'id': id}, {'$set': {...}}).
+  - .filter(...).exists() pasa a db.categorias.find_one({'nombre': nombre}).
+  - La búsqueda queda como en productos: coincidencia exacta por nombre.
+  - Se quitan los imports de ObjectDoesNotExist, Q y el modelo.
+  - descripcion se guarda siempre como texto ('' si viene vacía), nunca None.
+
+  Las plantillas no cambian, porque {{ categoria.nombre }} funciona igual con un
+  diccionario. Las categorías que ya existen ya tienen el campo id, así que
+  siguen sirviendo.
+
+  Los models.py se quedan en las 4 apps. Hacen falta porque la migración 0001
+  crea las colecciones a partir de ellos, y porque Usuario.ROL_CHOICES y
+  Orden.ESTADOS se usan para las listas de opciones.
+
+  2. JSON Schema en migraciones
+
+  - usuarios/migrations/0002_esquema.py, categorias/..., productos/... y
+    ordenes/... (esta última para ordenes y carritocompras).
+  - Cada una tiene un diccionario esquema y la llamada db.command('collMod', 
+    'nombre', validator={'$jsonSchema': esquema}).
+    - No se usa createCollection como en lo que pegaste, porque la 0001 ya creó
+      las colecciones.
+    - collMod le agrega el validador a la colección que ya existe.
+  - Los esquemas son los tuyos con las correcciones A, B y D y los objetos
+    anidados de la opción A. direccion acepta ['object', 'null'].
+  - No hay que tocar el Dockerfile: migrate ya las corre al levantar.
+
+  3. Quitar los datos de prueba
+
+  - Borrar datos_prueba.py.
+  - Dejar el Dockerfile como está en git (sin python datos_prueba.py).
+  - Problema: sin datos de prueba no existe ningún admin, y el registro solo
+    crea clientes, así que nadie podría entrar a categorías, productos ni
+    usuarios. Hay dos opciones:
+    - (a) Una migración usuarios/migrations/0003_admin.py que inserte un admin
+      inicial (por ejemplo admin@markethub.com / admin123). Se crea solo al
+      levantar con Docker.
+    - (b) Registrarse como cliente y cambiarle el rol a mano en Mongo.
+
+  4. Código que hay que alinear con los esquemas
+
+  - Registro: validar el email con '@' in email and '.' in email.
+  - Usuarios y registro: direccion sigue como objeto o None, que el esquema ya
+    acepta.
+  - Productos: la descripcion de la categoría embebida siempre va como texto.
+  - Órdenes y carrito: no cambian, porque con la opción A ya coinciden con el
+    esquema.
+
+  5. Puntos del plan anterior que siguen igual
+
+  - Órdenes: quitar orden_eliminar y sacar el cambio de estado a su propia
+    pantalla (orden_estado.html), para mantener 6 pantallas.
+  - Categorías: dejar eliminar, pero bloqueado si algún producto la usa
+    (db.productos.find_one({'categoria._id': ...})).
+  - Borrar las plantillas que no se usan: producto_crear.html,
+    producto_editar.html, categoria_form.html y orden_eliminar.html.
+  - Editar una categoría actualiza los productos con
+    db.productos.update_many(...), ahora escrito directo en pymongo.
+  - Los errores de carrito_finalizar se muestran en carrito_confirmar.html con
+    mostrar_confirmar(...), conservando la dirección que escribió el cliente.
+
+  6. Reiniciar la base y probar
+
+  - Hay que borrar la base actual con docker compose down -v, porque se armó con
+    datos_prueba.py. Esto borra todos los datos de tu Mongo local.
+  - Luego docker compose up --build: migrate crea las colecciones, aplica los
+    esquemas y (si eliges la opción a) crea el admin.
+  - Comprobar que las 5 colecciones tengan validador.
+  - Recorrer todo el flujo: crear categoría, producto, registrar un cliente,
+    agregar al carrito, comprar, cambiar estado, cancelar, editar la categoría,
+    desactivar.
+  - Probar un insert inválido a mano para ver que Mongo lo rechace.
+
+  Todo sin comentarios, con if/for y diccionarios, sin try/except.
+
+  Antes de implementar necesito que me confirmes cuatro cosas:
+  1. ¿Opción A (ajustar los esquemas al código, con objetos anidados) u opción B
+     (reescribir el código para usar referencias)?
+  2. ¿Admin inicial con migración (a) o a mano (b)?
+  3. ¿Puedo borrar tu base local con docker compose down -v?
+  4. ¿Confirmas lo del punto 5: el cambio de estado como pantalla propia y el
+     eliminar de categorías bloqueado cuando tiene productos?
+
+✻ Baked for 1m 11s · done miércoles 11:31 p.m.
+
+❯ A. eta parte arregla los campos que tienen un espacio                         
+                                                                                
+  b. agrega el campo id a lo que hace falta                                     
+                                                                                
+  c. ajusta los schemas a lo que el codigo guarda hoy                           
+                                                                                
+  d. en el schema los campos que van o pueden ir en null, que el schema sea     
+  null                                                                          
+                                                                                
+  e. deja el schema como esta en el codigo a nivel de email                     
+                                                                                
+  ahora, estas entendiendo mal, Categoria no pasa a pymongo, pymongo pasa al    
+  modelo                                                                        
+                                                                                
+  en el caso del punto 2, deja entonces solo una migracion que cree el schema y 
+  la coleccion                                                                  
+                                                                                
+  quita los datos de prueba                                                     
+                                                                                
+  arriba las instrucciones hablan de la validacion                              
+                                                                                
+  el 5 va bien                                                                  
+                                                                                
+  6 va bien                                                                     
+                                                                                
+  el try/except lo puedes dejar                                                 
+                                                                                
+  vuelve a mostrarme el plan con todos los ajustes                              
+
+● Antes de rehacer el plan reviso cómo funciona djongo 1.2.38 por dentro con
+  documentos anidados, porque pasar todo al ORM depende de eso.
+
+  Ran 6 shell commands (ctrl+o to expand)
+
+● Encontré un problema serio con djongo y Django 3.2: los modelos anidados
+  (abstract = True) no se pueden leer con el ORM. Estoy probando una alternativa
+  antes de armar el plan.
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● Antes del plan, dos cosas que encontré probando djongo en tu contenedor. Las
+  dos cambian cómo se hace el paso a modelos.
+
+  1. Los modelos anidados no se pueden leer como están. Todos los modelos
+     anidados (ProductoSnapshot, ItemOrden, Direccion, etc.) tienen abstract = 
+     True. Con Django 3.2, al leer un documento con el ORM, djongo intenta crear
+     un objeto de ese modelo y falla con TypeError: Abstract models cannot be 
+     instantiated. Hoy no se nota porque solo categorías usa el ORM, y
+     categorías no tiene nada anidado. Probé la alternativa y funciona: cambiar
+     abstract = True por managed = False. Así se pueden leer y guardar, y la
+     migración no crea colecciones para ellos.
+  2. El ORM no deja filtrar por campos anidados. Probé
+     Orden.objects.filter(usuario__email=...) y da FieldError: Unsupported 
+     lookup 'email' for EmbeddedModelField. Las búsquedas por un campo de un
+     subdocumento (las órdenes de un usuario, los productos de una categoría) se
+     resuelven trayendo los registros y filtrando con un for + if.
+
+  Plan completo
+
+  1. Modelos (models.py de usuarios, productos y ordenes)
+
+  - En los modelos anidados, abstract = True pasa a managed = False.
+  - Los snapshots guardaban _id = models.ObjectIdField(), pero con el ORM no hay
+    acceso al _id de Mongo, y además djongo descarta ese campo al guardar. Se
+    cambia por el id numérico, con los mismos nombres de tus esquemas:
+    - CategoriaSnapshot: categoria_id = models.IntegerField()
+    - ProductoSnapshot: producto_id = models.IntegerField()
+    - UsuarioSnapshot: usuario_id = models.IntegerField()
+  - Los demás campos y la forma de los documentos no cambian.
+
+  2. Todas las vistas usan el modelo (usuarios, productos, ordenes)
+
+  Categorías ya usa el ORM y se queda igual; las otras tres pasan de pymongo al
+  modelo.
+
+  ┌─────────────────────────────────┬───────────────────────────────────────┐
+  │         Antes (pymongo)         │           Después (modelo)            │
+  ├─────────────────────────────────┼───────────────────────────────────────┤
+  │ db.productos.find_one({'id':    │ try: Producto.objects.get(id=id) /    │
+  │ id})                            │ except ObjectDoesNotExist:            │
+  ├─────────────────────────────────┼───────────────────────────────────────┤
+  │ db.productos.insert_one({...})  │ Producto.objects.create(...)          │
+  ├─────────────────────────────────┼───────────────────────────────────────┤
+  │ db.productos.update_one(...,    │ Cambiar los atributos y llamar a      │
+  │ {'$set': ...})                  │ .save()                               │
+  ├─────────────────────────────────┼───────────────────────────────────────┤
+  │ db.productos.find(filtro).sort( │ Producto.objects.filter(...).order_by │
+  │ 'nombre', 1)                    │ ('nombre')                            │
+  ├─────────────────────────────────┼───────────────────────────────────────┤
+  │ {'$inc': {'stock': -n}}         │ producto.stock = producto.stock - n + │
+  │                                 │  producto.save()                      │
+  ├─────────────────────────────────┼───────────────────────────────────────┤
+  │ producto['nombre']              │ producto.nombre                       │
+  ├─────────────────────────────────┼───────────────────────────────────────┤
+  │ siguiente_id(...)               │ Ya no hace falta: djongo asigna el id │
+  │                                 │  solo                                 │
+  └─────────────────────────────────┴───────────────────────────────────────┘
+
+  - Los campos anidados se guardan como diccionarios. Por ejemplo:
+    categoria={'categoria_id': c.id, 'nombre': c.nombre, 'descripcion': 
+    c.descripcion}.
+  - Las listas (items) se arman con objetos del modelo. Por ejemplo:
+    ItemOrden(producto={...}, precio_unitario=..., cantidad=...).
+  - Las búsquedas por campos anidados se hacen con for + if:
+    - el carrito del usuario,
+    - las órdenes del cliente y la búsqueda del admin por email,
+    - el filtro de productos por categoría en la lista y en el catálogo,
+    - las órdenes en el detalle del usuario.
+  - usuario_actual devuelve un objeto Usuario, así que todos los usuario['rol']
+    pasan a usuario.rol.
+  - Las plantillas casi no cambian, porque {{ producto.nombre }} funciona igual
+    con un objeto.
+  - MarketHub/conexion.py queda solo con db. Lo usan únicamente las migraciones
+    para poner el esquema, porque el ORM no tiene forma de hacerlo. Se borra
+    siguiente_id.
+
+  3. Validación con JSON Schema y mensaje de error
+
+  Como pediste, la validación la hace el JSON Schema. Si Mongo rechaza un
+  documento, Django lanza DatabaseError. Cada create o save de las vistas va
+  dentro de un try/except DatabaseError que vuelve a mostrar la página con error
+  = 'Los datos no cumplen con la validacion de la base de datos.'.
+
+  El email queda como en tu esquema (pattern: "^.+@.+\..+$") y el código no se
+  toca. Si alguien se registra con ana@correo, Mongo lo rechaza y sale ese
+  mensaje en vez de una página de error 500. Las validaciones que ya están en
+  las vistas se quedan como están.
+
+  4. Una sola migración por app que crea la colección y el esquema
+
+  - Se borran las 0001_initial.py actuales y se generan de nuevo con
+    makemigrations, para que incluyan los cambios de los modelos.
+  - Dentro de esa misma 0001 se agrega, después del CreateModel, un
+    migrations.RunPython(crear_esquema) que aplica db.command('collMod', 
+    'productos', validator={'$jsonSchema': esquema}).
+  - Por qué no createCollection con el validador: probé el código de djongo, y
+    su CreateModel registra la colección en __schema__ para poder asignar los id
+    automáticos. Si la colección ya existe, se salta ese registro y los id
+    dejarían de funcionar. Por eso, en la misma migración, primero el
+    CreateModel crea la colección y justo después se le pone el esquema.
+  - Dockerfile: python manage.py migrate && python manage.py runserver 
+    0.0.0.0:8000. Se quita --fake-initial, que con la base nueva no hace falta y
+    podría saltarse el esquema, y se quita datos_prueba.py.
+
+  5. Los esquemas
+
+  Son los tuyos con espacios corregidos (A), id agregado (B), forma ajustada a
+  lo que guarda el código (C) y null donde aplica (D). Se mantienen
+  additionalProperties: false y minProperties/maxProperties, sumando 1 por el
+  id.
+
+  Colección: categorias
+  required: id, nombre, activo
+  Cambios respecto a lo que pegaste: Sin espacios, +id, descripcion: ['string', 
+    'null'], min 3 / max 5
+  ────────────────────────────────────────
+  Colección: usuarios
+  required: id, email, password, nombre, rol, activo
+  Cambios respecto a lo que pegaste: +id, direccion: ['object', 'null'] con
+    {calle, ciudad}, email con el pattern, min 6 / max 8
+  ────────────────────────────────────────
+  Colección: productos
+  required: id, nombre, precio, stock, categoria, activo
+  Cambios respecto a lo que pegaste: Sin espacios, +id, categoria_id pasa a
+    categoria: {categoria_id, nombre,  descripcion (string/null)}, min 6 / max 7
+  ────────────────────────────────────────
+  Colección: carritocompras
+  required: id, usuario, items
+  Cambios respecto a lo que pegaste: Nombre sin espacio, +id, usuario: 
+    {usuario_id, email, nombre}, items[{producto: {producto_id, nombre, 
+  precio},
+     cantidad}], min 3 / max 5
+  ────────────────────────────────────────
+  Colección: ordenes
+  required: id, usuario, fecha, estado, items, total
+  Cambios respecto a lo que pegaste: +id, usuario: {usuario_id, email, nombre},
+    items[{producto: {producto_id, nombre,  precio}, precio_unitario, 
+  cantidad}],
+     direccion_envio {calle, ciudad}, min 6 / max 8
+
+  6. Quitar los datos de prueba
+
+  Se borra datos_prueba.py y se quita del Dockerfile.
+
+  7. Lo ya aprobado, escrito con el modelo
+
+  - Órdenes: quitar orden_eliminar (vista, URL, plantilla y enlace) y pasar el
+    cambio de estado a su propia pantalla, orden_estado.html.
+  - Categorías: eliminar queda bloqueado si algún producto la usa (se revisa con
+    un for sobre los productos).
+  - Borrar las plantillas que no se usan: producto_crear.html,
+    producto_editar.html, categoria_form.html y orden_eliminar.html.
+  - Editar una categoría recorre los productos que la tienen y les actualiza el
+    nombre y la descripción con .save().
+  - Los errores de carrito_finalizar salen en carrito_confirmar.html,
+    conservando la dirección escrita.
+
+  8. Reiniciar y probar
+
+  1. docker compose down -v (borra tu Mongo local) y luego docker compose up 
+     --build.
+  2. Comprobar que las 5 colecciones tengan su validador.
+  3. Recorrer el flujo completo: categoría → producto → registro → carrito →
+     confirmar → orden → cambiar estado → cancelar (vuelve el stock) → editar
+     categoría (se actualizan los productos) → desactivar.
+  4. Registrarse con ana@correo para ver que el esquema lo rechace y salga el
+     mensaje.
+
+  Aviso para tus compañeros: como se rehacen las 0001, también tienen que correr
+  docker compose down -v después de hacer pull.
+
+  Sin comentarios, solo if/for, diccionarios y try/except.
+
+  Queda una sola cosa por decidir: sin datos de prueba no hay ningún admin,
+  porque el registro solo crea clientes. ¿Cómo lo resolvemos?
+  - (a) Te registras como cliente y le cambias el rol a mano en Mongo:
+    docker exec markethub-mongo-1 mongo markethub_db --eval 
+    'db.usuarios.updateOne({email:"tu@correo.com"},{$set:{rol:"admin"}})'
+  - (b) La migración de usuarios crea también un admin inicial.
+
+  Con eso y tu OK, implemento.
+✻ Sautéed for 2m 42s · done miércoles 11:56 p.m.
+
+❯ 1. entiendo que no es compatible, pero en este caso que quieres decir, si     
+  puedes explicalo con un ejemplo de como es el fallo actual, y porque es con   
+  djongo, no se puede actualizar                                                
+  2. explicame tambien lo de los modelos, por que se usarian snapshots?         
+  3. todas las vistas usan el modelo, pero al guardar los datos como            
+  diccionarios, no desaparecen los modelos, o es netamente visual?              
+  4. El email queda como en tu esquema (pattern: "^.+@.+\..+$") y el código no  
+  se toca. Si alguien se registra con ana@correo, Mongo lo rechaza y sale ese   
+  mensaje en vez de una página de error 500. Las validaciones que ya están en   
+  las vistas se quedan como están. no, esto no es correcto necesito que permita 
+  correos como lo dice el codigo es decir, si el codigo dice ana@correo, mongo  
+  debe aceptarlo                                                                
+  5. una sola migracion                                                         
+  6. esquemas bien                                                              
+  7. datos de prueba se borra                                                   
+  8. esta bien lo ya aprobado                                                   
+                                                                                
+  vuelve a mostarme el plan                                                     
+
+● 1. Por qué fallan los modelos anidados con djongo
+
+  Hoy los modelos anidados están declarados así:
+
+  class ProductoSnapshot(models.Model):
+      _id = models.ObjectIdField()
+      nombre = models.CharField(max_length=255)
+      precio = models.IntegerField()
+
+      class Meta:
+          abstract = True
+
+  Qué pasa al leer con el ORM. Supongamos que en ordenes/views.py se hace orden 
+  = Orden.objects.get(id=1):
+  1. djongo trae de Mongo el documento: {'id': 1, 'items': [{'producto': 
+     {'nombre': 'Mouse', 'precio': 60000}, ...}], ...}.
+  2. Para convertir cada subdocumento en objeto Python, djongo hace por dentro
+     ProductoSnapshot(nombre='Mouse', precio=60000).
+  3. Django 3.2 no permite crear objetos de un modelo abstract, y lanza:
+  TypeError: Abstract models cannot be instantiated.
+
+  Lo comprobé en tu contenedor: ProductoSnapshot(nombre='x', precio=3) da
+  exactamente ese error. Hoy no se ve porque órdenes, productos y usuarios leen
+  con pymongo, que devuelve diccionarios sin pasar por los modelos. En cuanto
+  pasen al ORM, cualquier pantalla que lea una orden, un producto o un usuario
+  se rompería.
+
+  Por qué no actualizamos djongo. djongo dejó de mantenerse, y sus documentos
+  usan abstract = True porque se escribieron para versiones de Django que sí lo
+  permitían. Cambiar de versión obligaría a cambiar también Django y volver a
+  probar todo el proyecto. La solución es cambiar una línea por modelo, abstract
+  = True → managed = False, que también probé en el contenedor:
+  - Se pueden crear objetos del modelo, así que djongo lee bien los
+    subdocumentos.
+  - La migración no crea una colección para ese modelo, que era justo lo que se
+    buscaba con abstract.
+
+  2. Por qué se usan snapshots
+
+  No es algo nuevo: ya están en tus modelos (UsuarioSnapshot, ProductoSnapshot,
+  CategoriaSnapshot). Un snapshot es una copia de los datos de otro documento 
+  guardada dentro del documento, en vez de una llave foránea. Es lo que pidieron
+  en clase con "objetos anidados en lugar de llaves foráneas".
+
+  Por ejemplo, una orden guarda:
+  {
+      'id': 5,
+      'usuario': {'usuario_id': 2, 'email': 'ana@correo.com', 'nombre': 'Ana'},
+      'items': [{'producto': {'producto_id': 4, 'nombre': 'Mouse', 'precio':
+  60000}, 'precio_unitario': 60000, 'cantidad': 1}],
+      ...
+  }
+
+  Sirve para dos cosas:
+  - Mostrar sin buscar en otra colección: la lista de órdenes enseña el email y
+    el nombre del cliente sin consultar usuarios.
+  - Conservar los datos del momento de la compra. Si mañana el mouse sube a
+    80.000, la orden sigue diciendo 60.000. Por eso se llama snapshot: es una
+    foto del dato en ese momento.
+
+  El usuario_id, producto_id y categoria_id (que hoy son _id) sirven para volver
+  al documento original, por ejemplo para descontar el stock del producto
+  correcto.
+
+  El costo: si cambia el original, la copia no se entera sola. Para las órdenes
+  eso está bien, porque tienen que conservar el dato viejo. Para la categoría
+  dentro del producto no, y por eso en el plan, al editar una categoría, se
+  actualizan sus productos.
+
+  3. ¿Los modelos desaparecen si se guardan diccionarios?
+
+  No, no desaparecen:
+  - El modelo de cada colección (Producto, Orden, …) define los campos y las
+    consultas (Producto.objects.get, .filter, .save()), y la migración crea la
+    colección a partir de él.
+  - Al leer, djongo convierte cada subdocumento en un objeto del modelo anidado.
+    Por ejemplo, producto.categoria es un CategoriaSnapshot.
+  - Pasar un diccionario al guardar es solo otra forma de entregarle el valor a
+    djongo, que lo guarda tal cual.
+
+  Tu pregunta tiene razón en algo: si usamos los modelos para leer, lo más
+  coherente es usarlos también para guardar. Como con managed = False ya se
+  pueden crear objetos de los modelos anidados, cambio el plan para guardar 
+  también con objetos del modelo:
+
+  Producto.objects.create(
+      nombre=nombre,
+      precio=int(precio),
+      stock=int(stock),
+      categoria=CategoriaSnapshot(categoria_id=categoria.id,
+  nombre=categoria.nombre, descripcion=categoria.descripcion),
+      activo=activo,
+  )
+
+  Así los modelos se usan al leer y al guardar.
+
+  4. Email
+
+  Entendido: Mongo tiene que aceptar exactamente lo mismo que el código. El
+  código solo revisa '@' in email, así que el esquema queda con pattern: "@"
+  (que tenga un @). ana@correo lo aceptan los dos.
+
+  ---
+
+  Plan completo
+
+  1. Modelos (usuarios, productos, ordenes)
+
+  - En los modelos anidados (Direccion, CategoriaSnapshot, UsuarioSnapshot,
+    ProductoSnapshot, ItemCarrito, ItemOrden, DireccionEnvio), abstract = True
+    pasa a managed = False.
+  - En los snapshots, _id = models.ObjectIdField() pasa a categoria_id,
+    producto_id o usuario_id = models.IntegerField(). Con el ORM no se tiene el
+    _id de Mongo, y djongo descarta los ObjectIdField al guardar subdocumentos.
+  - Categoria no cambia.
+
+  2. Vistas de usuarios, productos y ordenes con el modelo
+
+  Categorías ya usa el ORM y se queda como está.
+
+  ┌────────────────────────────┬────────────────────────────────────────────┐
+  │      Antes (pymongo)       │              Después (modelo)              │
+  ├────────────────────────────┼────────────────────────────────────────────┤
+  │ db.productos.find_one({'id │ try: Producto.objects.get(id=id) / except  │
+  │ ': id})                    │ ObjectDoesNotExist:                        │
+  ├────────────────────────────┼────────────────────────────────────────────┤
+  │ db.productos.insert_one({. │ Producto.objects.create(...)               │
+  │ ..})                       │                                            │
+  ├────────────────────────────┼────────────────────────────────────────────┤
+  │ update_one(..., {'$set':   │ Cambiar los atributos y llamar a .save()   │
+  │ ...})                      │                                            │
+  ├────────────────────────────┼────────────────────────────────────────────┤
+  │ find(filtro).sort('nombre' │ Producto.objects.filter(...).order_by('nom │
+  │ , 1)                       │ bre')                                      │
+  ├────────────────────────────┼────────────────────────────────────────────┤
+  │ {'$inc': {'stock': -n}}    │ producto.stock = producto.stock - n +      │
+  │                            │ producto.save()                            │
+  ├────────────────────────────┼────────────────────────────────────────────┤
+  │ producto['nombre']         │ producto.nombre                            │
+  ├────────────────────────────┼────────────────────────────────────────────┤
+  │ siguiente_id(...)          │ Ya no hace falta: djongo asigna el id      │
+  └────────────────────────────┴────────────────────────────────────────────┘
+
+  - Los subdocumentos y los items se guardan con objetos del modelo:
+    CategoriaSnapshot(...), UsuarioSnapshot(...),
+    ItemOrden(producto=ProductoSnapshot(...), ...), DireccionEnvio(...).
+  - Las búsquedas por un campo anidado se hacen con for + if, porque el ORM de
+    djongo no las permite (FieldError: Unsupported lookup):
+    - el carrito del usuario,
+    - las órdenes del cliente y la búsqueda del admin por email,
+    - el filtro de productos por categoría en la lista y en el catálogo,
+    - las órdenes en el detalle del usuario.
+  - usuario_actual devuelve un Usuario, así que todos los usuario['rol'] pasan a
+    usuario.rol.
+  - Las plantillas casi no cambian, porque {{ producto.nombre }} sirve igual.
+    Solo se cambian las que usan _id.
+  - MarketHub/conexion.py queda solo con db, para que las migraciones apliquen
+    el esquema. Se borra siguiente_id.
+
+  3. Si Mongo rechaza algo
+
+  Las validaciones de las vistas se quedan como están, y los esquemas aceptan lo
+  mismo que ellas. Por si acaso, cada create y save va dentro de un try/except 
+  DatabaseError que muestra en la misma página 'Los datos no cumplen con la 
+  validacion de la base de datos.', en vez de una página de error 500.
+
+  4. Una sola migración por app
+
+  - Se borran las 0001_initial.py y se generan de nuevo con makemigrations.
+  - En esa misma 0001, después del CreateModel, va un
+    migrations.RunPython(crear_esquema) con el diccionario esquema y
+    db.command('collMod', ..., validator={'$jsonSchema': esquema}).
+    - El CreateModel crea la colección y la registra en djongo para los id
+      automáticos.
+    - Justo después se le pone el esquema.
+  - ordenes/migrations/0001_initial.py pone el esquema de ordenes y de
+    carritocompras.
+  - Dockerfile: python manage.py migrate && python manage.py runserver 
+    0.0.0.0:8000, sin --fake-initial y sin datos_prueba.py.
+
+  5. Esquemas (aprobados)
+
+  Tus esquemas con los espacios corregidos, id agregado, la forma de lo que
+  guarda el código, null en categorias.descripcion, usuarios.direccion y
+  categoria.descripcion dentro del producto, y el email con pattern: "@". Se
+  mantienen additionalProperties: false y minProperties/maxProperties.
+
+  6. Datos de prueba
+
+  Se borra datos_prueba.py.
+
+  7. Lo ya aprobado
+
+  - Órdenes: sin eliminar, y el cambio de estado pasa a su propia pantalla
+    (orden_estado.html).
+  - Categorías: eliminar queda bloqueado si algún producto la usa.
+  - Se borran producto_crear.html, producto_editar.html, categoria_form.html y
+    orden_eliminar.html.
+  - Editar una categoría actualiza esa categoría en sus productos.
+  - Los errores al finalizar la compra salen en carrito_confirmar.html,
+    conservando la dirección.
+
+  8. Reiniciar y probar
+
+  1. docker compose down -v (borra tu Mongo local) y luego docker compose up 
+     --build.
+  2. Comprobar que las 5 colecciones tengan su validador.
+  3. Recorrer el flujo completo: categoría → producto → registro con ana@correo
+     → carrito → confirmar → orden → cambiar estado → cancelar (vuelve el stock)
+     → editar categoría (se actualiza en los productos) → desactivar.
+  4. Intentar un insert inválido directo en Mongo para ver que el esquema lo
+     rechace.
+
+  Tus compañeros también tienen que correr docker compose down -v después del
+  pull, porque cambian las 0001.
+
+  Sin comentarios, solo if/for y try/except.
+
+  Falta decidir una sola cosa: sin datos de prueba no hay ningún admin. ¿Cómo lo
+  creamos?
+  - (a) Te registras y le cambias el rol a mano en Mongo:
+    docker exec markethub-mongo-1 mongo markethub_db --eval 
+    'db.usuarios.updateOne({email:"tu@correo.com"},{$set:{rol:"admin"}})'
+  - (b) La migración de usuarios crea también un admin inicial.
+
+✻ Cogitated for 50s · done 12:06 a.m.
+
+❯ 1. me  dices que djongo no se usa, cual es lo mas util y actualizado para     
+  reemplazar esto                                                               
+  2. bien                                                                       
+  3. es mejor usar los modelos para guardar                                     
+  4. perfecto                                                                   
+                                                                                
+  antes de leer el plan, dame feedback sobre lo que te estoy explicando en este 
+  mensaje                                                                       
+
+● Web Search("django-mongodb-backend latest release EmbeddedModelField
+            requirements MongoDB version Django version")
+  ⎿  Did 1 search in 9s
+
+● Te doy el feedback punto por punto. El punto 1 es el que más pesa, porque
+  cambia todo el plan.
+
+  1. Djongo y qué lo reemplazaría
+
+  Primero una aclaración: no dije que djongo no se use. Es lo que usa tu 
+  proyecto hoy. Lo que dije es que ya no se mantiene: hace años que no saca
+  versiones, y por eso choca con Django 3.2 en el detalle de abstract.
+
+  El reemplazo más actual es Django MongoDB Backend (django-mongodb-backend). Es
+  el backend oficial, hecho por la propia MongoDB, y sigue sacando versiones;
+  la más reciente que encontré es la 6.1.0. Frente a djongo:
+
+  Mantenimiento
+  djongo (hoy): Abandonado
+  Django MongoDB Backend: Oficial y activo
+  ────────────────────────────────────────
+  Modelos anidados
+  djongo (hoy): Hay que usar el truco managed = False
+  Django MongoDB Backend: Soporte propio (EmbeddedModel, EmbeddedModelField,
+    EmbeddedModelArrayField)
+  ────────────────────────────────────────
+  Filtrar por campos anidados
+  djongo (hoy): No se puede (for + if)
+  Django MongoDB Backend: Sí: Orden.objects.filter(usuario__email=...)
+  ────────────────────────────────────────
+  Versiones que exige
+  djongo (hoy): Django 3.2, Mongo 5.0 (lo que tienen)
+  Django MongoDB Backend: Django 6.x y MongoDB 7.0 o más
+
+  Lo que costaría cambiarse:
+  - Subir Django de 3.2 a 6.x y la imagen de Mongo de 5.0 a 7.0 en
+    docker-compose.yml.
+  - Cambiar settings.py, todos los models.py y regenerar todas las migraciones.
+  - El id numérico desaparece. La llave principal pasa a ser el ObjectId de
+    Mongo, así que todas las URLs <int:id> pasan a <str:id>, y hay que revisar
+    cada plantilla y vista que usa id. El campo id que acabamos de agregar a los
+    esquemas también se iría.
+  - Tus compañeros tendrían que reconstruir su entorno.
+
+  Sería casi todo el plan actual más una migración de versiones, y es la parte
+  con más riesgo de romper cosas.
+
+  Mi recomendación: la pregunta clave es si en clase vieron djongo. Las
+  instrucciones hablan de lo visto en clase, y presentar con una herramienta
+  distinta a la que enseñó el profesor puede jugar en contra.
+  - Si el profesor enseñó djongo, o la entrega está cerca: quedarse con djongo y
+    usar managed = False. Ya lo probé en tu contenedor y funciona.
+  - Si el profesor deja usar cualquier herramienta y hay tiempo: Django MongoDB
+    Backend es la opción correcta a largo plazo, pero conviene hacerlo como un
+    cambio aparte antes del resto del plan.
+
+  2. Snapshots
+
+  Bien.
+
+  3. Guardar con los modelos
+
+  Estoy de acuerdo, es la mejor decisión. El código queda coherente: se lee y se
+  guarda con lo mismo, y al presentar los modelos muestran la estructura
+  completa. Además, si alguien escribe mal un campo (por ejemplo nombr=), Django
+  da error enseguida, cosa que no pasa con un diccionario.
+
+  4. Email
+
+  Perfecto. La regla de que el esquema acepte exactamente lo mismo que el código
+  es buena y la aplico a todos los campos, no solo al email. Así el try/except
+  solo queda como respaldo.
+
+  Lo que falta para pasar al plan
+
+  1. ¿djongo o Django MongoDB Backend? Esto va primero, porque cambia los
+     modelos, las migraciones, las URLs y los esquemas. ¿Sabes qué usó el
+     profesor en clase?
+  2. El admin inicial sigue sin decidir: (a) cambiarle el rol a mano en Mongo, o
+     (b) crearlo en la migración de usuarios.
+
+  Con esas dos respuestas te muestro el plan final.
+
+  Fuentes:
+  - Django MongoDB Backend 6.1.0 is now available
+  - Django MongoDB Backend 6.0.x release notes
+  - Django MongoDB Backend 6.0.4 is now available
+  - Release notes v6.0 (MongoDB docs)
+
+✻ Crunched for 49s · done 12:11 a.m.
+
+※ recap: Estamos planeando los arreglos para que MarketHub cumpla los requisitos de clase (modelos, JSON Schema, migraciones) y todavía no he cambiado nada. Necesito que decidas si seguimos con djongo o pasamos a Django MongoDB Backend, y cómo crear el admin inicial.
+
+❯ 1. para que se usa djongo relamente y porque lo usamos, desde cuando esta     
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● Para qué sirve djongo
+
+  Django está hecho para bases SQL. Su ORM convierte cada consulta en SQL:
+
+  Categoria.objects.filter(nombre='Hogar')
+  # Django genera:  SELECT * FROM categorias WHERE nombre = 'Hogar'
+
+  MongoDB no entiende SQL. Djongo es un traductor que se pone en medio: recibe
+  ese SQL, lo analiza con la librería sqlparse y lo convierte en una consulta de
+  Mongo:
+
+  SELECT * FROM categorias WHERE nombre = 'Hogar'
+          ↓ djongo
+  db.categorias.find({'nombre': 'Hogar'})
+
+  Gracias a eso se pueden usar los modelos, las migraciones y
+  Categoria.objects... con Mongo, como si fuera una base SQL. También agrega los
+  campos propios de Mongo que tienen en los modelos: EmbeddedModelField,
+  ArrayModelField y ObjectIdField. Por eso requirements.txt tiene
+  sqlparse==0.2.4 fijo: es la versión exacta que necesita djongo para traducir.
+
+  Desde cuándo está en el proyecto
+
+  Desde el inicio:
+  - 4 de octubre, first commit (James Melendez): ya venía 'ENGINE': 'djongo' en
+    MarketHub/settings.py y los modelos usaban from djongo import models.
+  - 13 de octubre, add models and views (tu commit): se agregó requirements.txt
+    con Django==3.2.25 y djongo==1.2.38, y quedó la configuración actual con
+    Docker.
+
+  Por qué lo eligieron no queda registrado en el repo. Lo más probable es que
+  haya sido la forma de cumplir lo de "Django + MongoDB" que piden en clase
+  usando el ORM, o que fuera lo que mostró el profesor. Eso lo sabe tu compañero
+  o el profesor.
+
+  Las señales de que djongo ya está desactualizado
+
+  En el propio proyecto se ve:
+  1. Tuvieron que bajar Django. El settings.py original dice "Generated by 
+     Django 5.2.17", pero requirements.txt fija Django==3.2.25, porque djongo no
+     funciona con versiones nuevas.
+  2. Hay un parche para que arranque. manage.py tiene django.utils.six = six.
+     djongo busca django.utils.six, un módulo que Django eliminó en la versión
+     3.0, y ese parche lo vuelve a poner a mano.
+  3. El error de abstract que encontramos con los modelos anidados.
+  4. Hay que fijar versiones viejas de sqlparse y pymongo (3.12.3) para que todo
+     encaje.
+
+  La versión que usan (1.2.38) es de hace varios años. Hasta donde sé, la última
+  versión de djongo (1.3.6) salió en 2022, y desde entonces el proyecto no se
+  ha actualizado.
+
+  Qué significa para la decisión
+
+  - Sí funciona para lo que necesitan, con el arreglo de managed = False que ya
+    probé.
+  - El riesgo es que cualquier cosa fuera de lo básico puede chocar con
+    limitaciones como las de las búsquedas anidadas, y no hay versiones nuevas
+    que lo arreglen.
+  - Si en clase lo usaron, quedarse con él es lo más seguro para la entrega.
+
+  ¿Sabes si el profesor usó djongo en clase, o fue idea de tu compañero? Con eso
+  decidimos si seguimos con djongo o pasamos a Django MongoDB Backend.
+
+✻ Baked for 22s · done 12:17 a.m.
+
+❯ en clase se esta usando el modelo para crear y hacer gets, pero no se habla   
+  en ningun punto de djongo                                                     
+
+● Eso indica que el profesor usa el ORM de Django (Modelo.objects.create(...),
+  Modelo.objects.get(...)) y que todo el proyecto debería trabajar con modelos.
+  Ya era el camino del plan.
+
+  Que no mencione djongo no dice qué conector usa, porque desde las vistas no se
+  nota: un Producto.objects.get(id=1) se escribe igual con djongo que con
+  Django MongoDB Backend. La diferencia solo aparece en dos lugares.
+
+  Cómo saber qué usa el profesor
+
+  Si tienes algún proyecto o ejemplo de clase, revisa:
+
+  1. settings.py, en DATABASES:
+
+  ┌─────────────────────────────────────┬───────────────────────────────────┐
+  │               Si dice               │                Usa                │
+  ├─────────────────────────────────────┼───────────────────────────────────┤
+  │ 'ENGINE': 'djongo'                  │ djongo (como ustedes)             │
+  ├─────────────────────────────────────┼───────────────────────────────────┤
+  │ 'ENGINE': 'django_mongodb_backend'  │ Django MongoDB Backend (el        │
+  │                                     │ oficial)                          │
+  ├─────────────────────────────────────┼───────────────────────────────────┤
+  │ 'ENGINE':                           │ No es Mongo; los modelos van a    │
+  │ 'django.db.backends.sqlite3'        │ una base SQL                      │
+  └─────────────────────────────────────┴───────────────────────────────────┘
+
+  2. Los imports de models.py:
+
+  ┌────────────────────────────────────────────────────────┬────────────────┐
+  │                        Si dice                         │      Usa       │
+  ├────────────────────────────────────────────────────────┼────────────────┤
+  │ from djongo import models                              │ djongo         │
+  ├────────────────────────────────────────────────────────┼────────────────┤
+  │ from django_mongodb_backend.fields import              │ Django MongoDB │
+  │ EmbeddedModelField o from                              │  Backend       │
+  │ django_mongodb_backend.models import EmbeddedModel     │                │
+  ├────────────────────────────────────────────────────────┼────────────────┤
+  │ Solo from django.db import models, sin campos anidados │ Hay que mirar  │
+  │                                                        │ settings.py    │
+  └────────────────────────────────────────────────────────┴────────────────┘
+
+  También sirve el requirements.txt o el pip install que haya mostrado: djongo o
+  django-mongodb-backend.
+
+  Mi lectura
+
+  Como el curso habla de objetos anidados, JSON Schema y modelos con create/get,
+  y no menciona djongo, es bastante probable que el profesor use Django MongoDB
+  Backend. Es el conector oficial actual, y con él los modelos anidados
+  funcionan sin trucos. Pero es una suposición; hay que confirmarlo con el
+  código de clase.
+
+  - Si confirma Django MongoDB Backend: te recomiendo pasarse a ese. El proyecto
+    quedaría alineado con la clase y desaparecen los problemas de abstract y de
+    las búsquedas anidadas. El costo es subir Django y Mongo, y que el id pase
+    a ser ObjectId. Lo meto como primer paso del plan.
+  - Si confirma djongo, o no hay forma de saberlo: seguimos con djongo y managed
+    = False, que ya está probado.
+
+  ¿Puedes revisar el settings.py o los imports de algún ejemplo de clase? Si
+  quieres, pégame ese fragmento y te digo cuál es. Sigue pendiente también lo
+  del admin inicial: (a) a mano en Mongo o (b) en la migración.
+
+✻ Worked for 16s · done 12:20 a.m.
+
+❯ en los imports de models.py del profesor solo importa from django.db import   
+  models, no importa mas esto significa que no usa djongo                       
+
+● No necesariamente. Ese import no alcanza para saberlo, porque from django.db 
+  import models es el import normal de Django y funciona con cualquier conector:
+
+  ┌────────────────┬────────────────────────────────────────────────────────┐
+  │    Conector    │     ¿Puede usar solo from django.db import models?     │
+  ├────────────────┼────────────────────────────────────────────────────────┤
+  │ SQLite /       │                                                        │
+  │ PostgreSQL     │ Sí, es lo normal                                       │
+  │ (SQL)          │                                                        │
+  ├────────────────┼────────────────────────────────────────────────────────┤
+  │ Django MongoDB │ Sí, para campos simples (CharField, IntegerField…).    │
+  │  Backend       │ Solo hace falta importar de django_mongodb_backend     │
+  │                │ para los campos anidados                               │
+  ├────────────────┼────────────────────────────────────────────────────────┤
+  │                │ También: djongo acepta los modelos normales de Django. │
+  │ djongo         │  Solo hace falta from djongo import models para        │
+  │                │ EmbeddedModelField y ArrayModelField                   │
+  └────────────────┴────────────────────────────────────────────────────────┘
+
+  Lo que sí dice ese import: en esos modelos el profesor no usa campos anidados,
+  solo campos simples. El conector se ve en un solo lugar, el DATABASES del
+  settings.py:
+
+  DATABASES = {
+      'default': {
+          'ENGINE': '...',   ← esto es lo que define todo
+          ...
+      }
+  }
+
+  Si no tienes el settings.py de clase, también sirve lo que instaló el profesor
+  (pip install ... o requirements.txt).
+
+  Vale la pena fijarse en otra cosa: si sus modelos solo tienen campos simples,
+  ¿cómo maneja los objetos anidados que pide en el proyecto? Puede ser con un
+  JSONField, guardándolos directo en Mongo, o con algo que no hemos visto. Si
+  tienes un ejemplo de clase donde guarde un objeto dentro de otro, mándamelo,
+  porque ahí se ve exactamente cómo espera que se haga.
+
+  ¿Puedes conseguir el ENGINE del settings.py de clase, o el comando de
+  instalación?
+
+✻ Worked for 11s · done 12:22 a.m.
+
+❯ dame el plan para implementar esto Django MongoDB Backend, si es correcto,    
+  armamos el plan general y lo hacemos, pero primero ajustemos esta parte       
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● Reviso la documentación actual de Django MongoDB Backend para que el plan use
+  la configuración correcta.
+
+● web-fetch(Fetch Django MongoDB Backend setup docs)
+  ⎿  Received 148 bytes
+
+› Message from web-fetch
+  Summary: The docs cover most of the questions. Three items are not documented
+  in any page I read: the MongoDB server minimum, the `id` to `_id` mapping, and
+  `$jsonSchema` support. Raw commands inside migrations are also undocumented.
+  Details and sources are below.
+
+  ## 1. Versions
+  - Latest stable: 6.1.0, dated August 17, 2026. The page also lists 6.1.1 as
+  "Unreleased" (bug fixes only). Source:
+  https://django-mongodb-backend.readthedocs.io/en/latest/releases/6.1.x/
+  - Django: 6.1 is required. The 6.1.0 notes say "Django 6.1 is now required.
+  Django 6.0 is supported by the `django-mongodb-backend` 6.0.x series." Source:
+  same page. requirements.txt says `django>=6.1,<6.2`. Source: https://raw.gith
+  ubusercontent.com/mongodb/django-mongodb-backend/main/requirements.txt
+  - Install: `pip install django-mongodb-backend==6.1.*`. The docs say "The
+  minor release number of Django doesn't correspond to the minor release number
+  of `django-mongodb-backend`." Source:
+  https://django-mongodb-backend.readthedocs.io/en/latest/intro/install/
+  - Python: `requires-python = ">=3.12"`. Classifiers list 3.12 through 3.15.
+  Source: https://raw.githubusercontent.com/mongodb/django-mongodb-backend/main/
+  pyproject.toml
+  - pymongo: `pymongo>=4.7,<5.0` (requirements.txt). The optional `encryption`
+  extra needs `pymongo>=4.16.0` and `pymongo[encryption]`. Sources:
+  requirements.txt and pyproject.toml above.
+  - MongoDB server: NOT DOCUMENTED in any page I read. The only server-related
+  statement is that transactions need a replica set or sharded cluster (https://
+  django-mongodb-backend.readthedocs.io/en/latest/topics/transactions/).
+
+  ## 2. DATABASES
+  From https://django-mongodb-backend.readthedocs.io/en/latest/intro/configure/:
+  ```python
+  DATABASES = {
+      "default": {
+          "ENGINE": "django_mongodb_backend",
+          "HOST": "mongodb+srv://my_user:my_password@cluster0.example.mongodb.ne
+  t/?retryWrites=true&w=majority&tls=false",
+          "NAME": "my_database",
+      },
+  }
+  ```
+  - The docs say the connection string in "HOST" is supported since 5.2.1.
+  Earlier versions used `django_mongodb_backend.utils.parse_uri()`.
+  - Split form: `"HOST": "mongodb+srv://cluster0.example.mongodb.net"`, plus
+  `"USER"`, `"PASSWORD"`, `"PORT": 27017`, and `"OPTIONS": {...}`. OPTIONS is
+  passed to `MongoClient`.
+  - Localhost: omit HOST or use `"HOST": "localhost"`.
+  - The ENGINE value is `"django_mongodb_backend"`, not
+  `"django_mongodb_backend.parse_uri"`.
+
+  ## 3. Required settings
+  - DEFAULT_AUTO_FIELD: `DEFAULT_AUTO_FIELD =
+  "django_mongodb_backend.fields.ObjectIdAutoField"`. This setting does not
+  override apps whose AppConfig sets `default_auto_field`.
+  - AppConfig overrides: the project template's `apps.py` defines
+  `MongoAdminConfig(AdminConfig)`, `MongoAuthConfig(AuthConfig)`, and
+  `MongoContentTypesConfig(ContentTypesConfig)`, each with `default_auto_field =
+  "django_mongodb_backend.fields.ObjectIdAutoField"`. In INSTALLED_APPS use
+  `'<project_name>.apps.MongoAdminConfig'` in place of `'django.contrib.admin'`,
+  and likewise for auth and contenttypes.
+  - INSTALLED_APPS: add `'django_mongodb_backend'`. It "makes the package's
+  management commands and form widget templates available." The startproject
+  template already includes it.
+  - MIGRATION_MODULES:
+  ```python
+  MIGRATION_MODULES = {
+      "admin": "mongo_migrations.admin",
+      "auth": "mongo_migrations.auth",
+      "contenttypes": "mongo_migrations.contenttypes",
+  }
+  ```
+  - Generating them: the template ships these migrations, or run `python
+  manage.py makemigrations admin auth contenttypes`. The docs show the output
+  `mongo_migrations/admin/0001_initial.py`.
+  - DATABASE_ROUTERS: required if you use embedded models: `DATABASE_ROUTERS =
+  ["django_mongodb_backend.routers.MongoRouter"]`.
+  - New apps: `startapp` needs no extra steps in 6.x. Sources:
+  https://django-mongodb-backend.readthedocs.io/en/latest/intro/configure/ and
+  https://django-mongodb-backend.readthedocs.io/en/latest/howto/contrib-apps/
+  - Contrib apps: admin, auth, contenttypes, flatpages, redirects, and sites
+  need the AppConfig and the Mongo migrations. contrib.sites also needs `SITE_ID
+  = ObjectId("000000000000000000000001")` and `SILENCED_SYSTEM_CHECKS =
+  ["sites.E101"]`.
+  - Sessions: not mentioned in the pages I read.
+
+  ## 4. Embedded models
+  Sources: https://django-mongodb-backend.readthedocs.io/en/latest/topics/embedd
+  ed-models/ and
+  https://django-mongodb-backend.readthedocs.io/en/latest/ref/models/fields/
+  ```python
+  from django.db import models
+  from django_mongodb_backend.fields import EmbeddedModelField,
+  EmbeddedModelArrayField
+  from django_mongodb_backend.models import EmbeddedModel
+
+  class Address(EmbeddedModel):
+      city = models.CharField(max_length=255)
+
+  class Customer(models.Model):
+      name = models.CharField(max_length=255)
+      address = EmbeddedModelField("Address")
+
+  class Tag(EmbeddedModel):
+      name = models.CharField(max_length=100)
+
+  class Post(models.Model):
+      name = models.CharField(max_length=200)
+      tags = EmbeddedModelArrayField("Tag")
+  ```
+  - Base class: `django_mongodb_backend.models.EmbeddedModel`. Fields come from
+  `django_mongodb_backend.fields`.
+  - Creating instances: `Customer.objects.create(name="Bob",
+  address=Address(city="New York"))` and `Post.objects.create(name="Hello
+  world!", tags=[Tag(name="welcome"), Tag(name="test")])`.
+  - Subfield filters, EmbeddedModelField:
+  `Customer.objects.filter(address__city="New York")` is supported.
+  - Subfield filters, EmbeddedModelArrayField:
+  `Post.objects.filter(tags__name="test")` is supported. Chainable lookups are
+  limited to exact, iexact, in, gt, gte, lt, lte. There are len transforms
+  (`tags__len=1`, `tags__len__gte=1`) and index/slice transforms
+  (`tags__0__name="test"`, `tags__0_1__name="test"`). Two levels of array
+  traversal raise `ValueError: Cannot perform multiple levels of array traversal
+  in a query.`
+  - Migrations: "`makemigrations` does not yet detect changes to embedded
+  models." Existing documents are not updated when embedded model fields change.
+  - Indexes and constraints (6.0.2+): use
+  `EmbeddedFieldIndex(fields=["address.zip_code"])` and
+  `EmbeddedFieldUniqueConstraint(fields=["product_info.sku"], name=...)` on the
+  top-level model. Inline unique, db_index, or Meta.indexes/constraints on
+  embedded models were removed in 6.1.0.
+  - Polymorphic variants (PolymorphicEmbeddedModelField,
+  PolymorphicEmbeddedModelArrayField) also exist.
+
+  ## 5. Primary key and URLs
+  - Primary keys are ObjectIdAutoField. The fields reference calls it "typically
+  the default primary key field for all models stored in MongoDB." Source:
+  https://django-mongodb-backend.readthedocs.io/en/latest/ref/models/fields/
+  - The contrib-apps page says "all primary keys are ObjectIds."
+  - id to _id mapping: NOT DOCUMENTED in the pages I read. The embedded-models
+  page shows BSON with `_id: ObjectId(...)`, but no page states the attribute
+  mapping.
+  - URLs: a custom converter `object_id` was added in 6.0.3:
+  ```python
+  from django.urls import path
+  from . import views
+
+  urlpatterns = [
+      path("author/<object_id:pk>/", views.AuthorDetail.as_view()),
+  ]
+  ```
+  This matches `/author/69868bc49b827bee857500c2/` and passes
+  `pk=ObjectId("69868bc49b827bee857500c2")`. Source:
+  https://django-mongodb-backend.readthedocs.io/en/latest/topics/urls/
+
+  ## 6. $jsonSchema and raw commands
+  - $jsonSchema validators: NOT DOCUMENTED. No page I read mentions $jsonSchema,
+  collection validators, or a migration operation for them.
+  - Raw commands in migrations: NOT DOCUMENTED. No page shows
+  `schema_editor.connection.database`, `connection.database`, or a db.command
+  example. The only documented raw escape hatch is
+  `QuerySet.raw_aggregate(pipeline)`. Source:
+  https://django-mongodb-backend.readthedocs.io/en/latest/ref/models/querysets/
+  - The database reference only documents `django.db.connection.close_pool()`.
+  Source: https://django-mongodb-backend.readthedocs.io/en/latest/ref/database/
+
+  ## 7. Known limitations
+  Sources:
+  https://django-mongodb-backend.readthedocs.io/en/latest/topics/known-issues/ ,
+  /topics/transactions/ , /ref/models/querysets/ , /ref/models/fields/
+  - Transactions: supported on a replica set or sharded cluster. Django's
+  transaction.atomic() is a no-op. Use `from django_mongodb_backend import
+  transaction` and `transaction.atomic()`. Savepoints (nested atomic) are not
+  supported. QuerySet.union() is not supported inside a transaction. Manual
+  rollbacks do not revert in-memory model field values.
+  - Unsupported QuerySet methods: extra(), prefetch_related(), raw() (use
+  raw_aggregate()), and select_for_update() (a no-op). delete() and update() do
+  not support queries spanning multiple collections.
+  - select_related, F expressions in update(), count(), order_by(), distinct():
+  no specific limitations are stated. The docs say "All of Django's QuerySet
+  methods are supported" except the list above, so these are implied supported,
+  with no detail.
+  - Unique constraints: no general statement about Django UniqueConstraint on
+  top-level fields. Known caveats: values outside the 32-bit range of the BSON
+  int type are not enforced for SmallIntegerField/PositiveSmallIntegerField, and
+  EmbeddedModelArrayField constraints need nulls_distinct=False for NULLs.
+  - Unsupported fields: AutoField/BigAutoField/SmallAutoField,
+  CompositePrimaryKey, GeneratedField. DateTimeField has millisecond precision.
+  - Other: inspectdb and migrate --fake-initial are not supported. Database
+  caching is not supported.
+  - Admin/auth: supported through the contrib-app AppConfig and migrations in
+  section 3. No admin-specific limitations are listed.
+
+  ## Pages not fetched
+  - https://www.mongodb.com/docs/languages/python/django-mongodb/current/
+  (linked from the README; may cover the server version)
+  - https://django-mongodb-backend.readthedocs.io/en/latest/ref/models/indexes/
+  and /ref/models/constraints/
+  - https://django-mongodb-backend.readthedocs.io/en/latest/releases/6.0.x/
+
+● Ya revisé la documentación oficial de Django MongoDB Backend. Es la parte con
+  más impacto, así que va como una primera fase separada del plan general.
+
+  Fase 1: pasar de djongo a Django MongoDB Backend
+
+  1. Versiones (requirements.txt, Dockerfile, docker-compose.yml)
+
+  ┌──────────────────────┬──────────────────┬───────────────────────────────┐
+  │                      │       Hoy        │            Después            │
+  ├──────────────────────┼──────────────────┼───────────────────────────────┤
+  │ Django               │ 3.2.25           │ 6.1.*                         │
+  ├──────────────────────┼──────────────────┼───────────────────────────────┤
+  │ Conector             │ djongo==1.2.38   │ django-mongodb-backend==6.1.* │
+  ├──────────────────────┼──────────────────┼───────────────────────────────┤
+  │ pymongo              │ 3.12.3 (fijo)    │ Lo instala el conector (4.x)  │
+  ├──────────────────────┼──────────────────┼───────────────────────────────┤
+  │ sqlparse, six, pytz  │ Fijos            │ Se quitan (eran solo para     │
+  │                      │                  │ djongo)                       │
+  ├──────────────────────┼──────────────────┼───────────────────────────────┤
+  │ Python (Dockerfile)  │ python:3.10-slim │ python:3.12-slim (el conector │
+  │                      │                  │  pide 3.12 o más)             │
+  ├──────────────────────┼──────────────────┼───────────────────────────────┤
+  │ MongoDB              │ mongo:5.0        │ mongo:8.0 (desde la serie 6.0 │
+  │ (docker-compose.yml) │                  │  el mínimo es MongoDB 7.0)    │
+  └──────────────────────┴──────────────────┴───────────────────────────────┘
+
+  - manage.py: se quita el parche django.utils.six = six, que solo existía por
+    djongo.
+  - Dockerfile: el CMD queda python manage.py migrate && python manage.py 
+    runserver 0.0.0.0:8000. Se quitan --fake-initial (el conector no lo soporta)
+    y datos_prueba.py.
+
+  2. settings.py
+
+  INSTALLED_APPS = [
+      'MarketHub.apps.MongoAdminConfig',
+      'MarketHub.apps.MongoAuthConfig',
+      'MarketHub.apps.MongoContentTypesConfig',
+      'django.contrib.sessions',
+      'django.contrib.messages',
+      'django.contrib.staticfiles',
+      'django_mongodb_backend',
+      'usuarios',
+      'categorias',
+      'productos',
+      'ordenes',
+  ]
+
+  DATABASES = {
+      'default': {
+          'ENGINE': 'django_mongodb_backend',
+          'HOST': os.environ.get('MONGO_HOST', 'mongodb://localhost:27017/'),
+          'NAME': 'markethub_db',
+      }
+  }
+
+  DEFAULT_AUTO_FIELD = 'django_mongodb_backend.fields.ObjectIdAutoField'
+
+  MIGRATION_MODULES = {
+      'admin': 'mongo_migrations.admin',
+      'auth': 'mongo_migrations.auth',
+      'contenttypes': 'mongo_migrations.contenttypes',
+  }
+
+  DATABASE_ROUTERS = ['django_mongodb_backend.routers.MongoRouter']
+  - Archivo nuevo MarketHub/apps.py: tres clases cortas (MongoAdminConfig,
+    MongoAuthConfig, MongoContentTypesConfig). Son las que pide la documentación
+    para que admin, auth y contenttypes usen ObjectId.
+  - Carpeta nueva mongo_migrations/: se genera con python manage.py 
+    makemigrations admin auth contenttypes.
+  - DATABASE_ROUTERS: la documentación lo pide cuando se usan modelos anidados.
+
+  3. Modelos
+
+  Queda con el mismo import que usa el profesor, más los campos anidados del
+  conector. Por ejemplo, ordenes/models.py:
+  from django.db import models
+  from django_mongodb_backend.fields import EmbeddedModelField,
+  EmbeddedModelArrayField, ObjectIdField
+  from django_mongodb_backend.models import EmbeddedModel
+
+
+  class ProductoSnapshot(EmbeddedModel):
+      producto_id = ObjectIdField()
+      nombre = models.CharField(max_length=255)
+      precio = models.IntegerField()
+
+
+  class ItemOrden(EmbeddedModel):
+      producto = EmbeddedModelField(ProductoSnapshot)
+      precio_unitario = models.IntegerField()
+      cantidad = models.IntegerField()
+
+
+  class Orden(models.Model):
+      usuario = EmbeddedModelField(UsuarioSnapshot)
+      items = EmbeddedModelArrayField(ItemOrden)
+      ...
+  - Los modelos anidados heredan de EmbeddedModel. Desaparecen abstract = True y
+    el truco de managed = False.
+  - ArrayModelField pasa a EmbeddedModelArrayField.
+  - Los snapshots guardan el ObjectId del original: categoria_id, producto_id y
+    usuario_id como ObjectIdField().
+  - Categoria solo cambia el import: from django.db import models.
+
+  4. El id pasa a ser ObjectId
+
+  - URLs: <int:id> pasa a <object_id:id>, un conversor que trae el propio
+    conector. Las URLs quedan como /productos/69868bc49b827bee857500c2/editar/.
+  - Plantillas: {% url 'productos:producto_editar' producto.id %} sigue igual.
+  - Sesión: la sesión no puede guardar un ObjectId, así que se guarda
+    str(usuario.id).
+  - Se borra siguiente_id, porque Mongo pone el _id solo.
+
+  5. Ventajas frente a djongo
+
+  - Filtrar por campos anidados sí funciona, así que desaparecen los for + if
+    del plan anterior:
+  Orden.objects.filter(usuario__usuario_id=usuario.id)
+  Orden.objects.filter(usuario__email=busqueda)
+  Producto.objects.filter(categoria__categoria_id=categoria.id)
+  - Los modelos anidados funcionan sin trucos, y se crean como dice la
+    documentación: Producto.objects.create(..., 
+    categoria=CategoriaSnapshot(...)).
+
+  6. Migración: colección y esquema en el mismo archivo
+
+  - Se borran todas las 0001_initial.py y se generan de nuevo con
+    makemigrations.
+  - En cada 0001, después del CreateModel, va un RunPython(crear_esquema) que
+    aplica collMod con el $jsonSchema.
+  - El conector no tiene soporte propio para $jsonSchema, así que se aplica con
+    un comando directo a Mongo dentro de la migración.
+
+  7. Ajuste a los esquemas
+
+  Como ahora el identificador es el _id de Mongo, ya no hace falta el campo id 
+  extra que habíamos agregado (punto B).
+  - Cada esquema vuelve a tener solo _id: objectId.
+  - minProperties y maxProperties vuelven a tus números originales.
+  - Los ids de los snapshots son objectId: categoria.categoria_id,
+    usuario.usuario_id e items.producto.producto_id.
+
+  Todo lo demás de los esquemas queda como lo aprobaste: sin espacios, objetos
+  anidados, null donde aplica y email con pattern: "@".
+
+  8. Lo que la documentación no dice y compruebo primero
+
+  Antes de tocar las vistas, pruebo cuatro cosas en el contenedor:
+  1. Que objeto.id corresponda al _id de Mongo.
+  2. Cómo ejecutar collMod dentro de la migración (con la conexión de Django o
+     con un MongoClient).
+  3. Qué error lanza Django cuando el esquema rechaza un documento, para el
+     try/except.
+  4. Que el CreateModel cree la colección antes del collMod.
+
+  Si alguna falla, te aviso antes de seguir.
+
+  9. Reinicio
+
+  - docker compose down -v y docker compose up --build. Hay que reconstruir
+    porque cambian Python, Django y Mongo.
+  - Tus compañeros tienen que hacer lo mismo después del pull.
+
+  Las vistas, plantillas, pantallas y arreglos aprobados van en el plan general.
+  Con este backend se simplifican, porque las búsquedas anidadas ya no
+  necesitan for.
+
+  ¿Te parece bien esta fase? Si sí, armo el plan general con todo junto. Sigue
+  pendiente lo del admin inicial: (a) a mano en Mongo o (b) en la migración de
+  usuarios.
+
+✻ Worked for 2m 45s · done 12:25 a.m.
+
+❯ note que cuando el tipa un modelo no hace EmbeddedModelField, sino            
+  EmbeddedField, esto nos da una pista                                          
+                                                                                
+  pon como esta y como lo dice el plan, y en el de como esta ahora, el antes    
+  podemos llamarlo, muestrame que tendriamos que cambiar para que funcione      
+  adecuadamente                                                                 
+
+● Que use EmbeddedField es una buena pista. Reviso qué librería usa ese nombre
+  exacto.
+
+  Ran 2 shell commands (ctrl+o to expand)
+
+● Es una buena pista. Revisé los paquetes y el nombre EmbeddedField es de 
+  djongo, en sus versiones 1.3.x:
+
+  ┌───────────────────────┬───────────────────────┬─────────────────────────┐
+  │       Librería        │ Campo para un objeto  │  Campo para una lista   │
+  │                       │        anidado        │                         │
+  ├───────────────────────┼───────────────────────┼─────────────────────────┤
+  │ djongo 1.2.x (la que  │ EmbeddedModelField    │ ArrayModelField         │
+  │ tienen hoy)           │                       │                         │
+  ├───────────────────────┼───────────────────────┼─────────────────────────┤
+  │ djongo 1.3.x          │ EmbeddedField         │ ArrayField              │
+  ├───────────────────────┼───────────────────────┼─────────────────────────┤
+  │ Django MongoDB        │                       │                         │
+  │ Backend (el plan      │ EmbeddedModelField    │ EmbeddedModelArrayField │
+  │ anterior)             │                       │                         │
+  └───────────────────────┴───────────────────────┴─────────────────────────┘
+
+  Bajé el paquete djongo 1.3.6 y confirmé que trae EmbeddedField y ArrayField.
+  Esos nombres no existen en Django MongoDB Backend. Lo más probable es que el 
+  profesor use djongo 1.3, así que retiro la recomendación de cambiar a Django
+  MongoDB Backend: lo correcto es quedarse con djongo y subir a la versión que
+  usa el profesor.
+
+  Hay una inconsistencia: EmbeddedField no existe en django.db.models. Si el
+  profesor lo usa, en algún lado lo importa de djongo, probablemente con from 
+  djongo import models o from djongo.models import EmbeddedField. Revisa la
+  línea exacta.
+
+  ---
+
+  Antes vs. plan (con ordenes/models.py de ejemplo)
+
+  Antes: cómo está hoy (djongo 1.2.38)
+
+  from djongo import models
+
+  class ProductoSnapshot(models.Model):
+      _id = models.ObjectIdField()
+      nombre = models.CharField(max_length=255)
+      precio = models.IntegerField()
+
+      class Meta:
+          abstract = True
+
+  class ItemOrden(models.Model):
+      producto = models.EmbeddedModelField(model_container=ProductoSnapshot)
+      precio_unitario = models.IntegerField()
+      cantidad = models.IntegerField()
+
+      class Meta:
+          abstract = True
+
+  class Orden(models.Model):
+      usuario = models.EmbeddedModelField(model_container=UsuarioSnapshot)
+      items = models.ArrayModelField(model_container=ItemOrden)
+      ...
+
+  Plan anterior: Django MongoDB Backend (descartado)
+
+  from django.db import models
+  from django_mongodb_backend.fields import EmbeddedModelField,
+  EmbeddedModelArrayField, ObjectIdField
+  from django_mongodb_backend.models import EmbeddedModel
+
+  class ProductoSnapshot(EmbeddedModel):
+      producto_id = ObjectIdField()
+      nombre = models.CharField(max_length=255)
+      precio = models.IntegerField()
+
+  class Orden(models.Model):
+      usuario = EmbeddedModelField(UsuarioSnapshot)
+      items = EmbeddedModelArrayField(ItemOrden)
+      ...
+
+  Antes corregido: djongo 1.3, como el profesor (propuesta)
+
+  from django.db import models
+  from djongo.models import EmbeddedField, ArrayField
+
+  class ProductoSnapshot(models.Model):
+      producto_id = models.IntegerField()
+      nombre = models.CharField(max_length=255)
+      precio = models.IntegerField()
+
+      class Meta:
+          managed = False
+
+  class ItemOrden(models.Model):
+      producto = EmbeddedField(model_container=ProductoSnapshot)
+      precio_unitario = models.IntegerField()
+      cantidad = models.IntegerField()
+
+      class Meta:
+          managed = False
+
+  class Orden(models.Model):
+      usuario = EmbeddedField(model_container=UsuarioSnapshot)
+      items = ArrayField(model_container=ItemOrden)
+      ...
+
+  ---
+
+  Qué cambiar en el "antes" para que funcione
+
+  #: 1
+  Qué: requirements.txt
+  Antes (hoy): djongo==1.2.38
+  Cambio: djongo==1.3.x, la misma versión que use el profesor
+  Por qué: Para tener EmbeddedField y ArrayField. Django se queda en 3.2.25 y
+    Mongo en 5.0
+  ────────────────────────────────────────
+  #: 2
+  Qué: Imports de los modelos
+  Antes (hoy): from djongo import models
+  Cambio: from django.db import models + from djongo.models import 
+  EmbeddedField,
+     ArrayField
+  Por qué: Igual que el profesor
+  ────────────────────────────────────────
+  #: 3
+  Qué: Objeto anidado
+  Antes (hoy): models.EmbeddedModelField(...)
+  Cambio: EmbeddedField(...)
+  Por qué: Nombre de djongo 1.3
+  ────────────────────────────────────────
+  #: 4
+  Qué: Lista de objetos
+  Antes (hoy): models.ArrayModelField(...)
+  Cambio: ArrayField(...)
+  Por qué: Nombre de djongo 1.3
+  ────────────────────────────────────────
+  #: 5
+  Qué: Modelos anidados
+  Antes (hoy): abstract = True
+  Cambio: managed = False
+  Por qué: Revisé el código de djongo 1.3.6 y el problema sigue: usa la misma
+    función que crea un objeto del modelo al leer, y Django 3.2 no deja crear
+    objetos de un modelo abstract. Con managed = False sí deja, y no se crea
+    ninguna colección
+  ────────────────────────────────────────
+  #: 6
+  Qué: Ids en los snapshots
+  Antes (hoy): _id = models.ObjectIdField()
+  Cambio: producto_id, usuario_id y categoria_id como models.IntegerField()
+  Por qué: djongo descarta los ObjectIdField al guardar subdocumentos, y con el
+    ORM se trabaja con el id numérico
+  ────────────────────────────────────────
+  #: 7
+  Qué: Vistas de usuarios, productos y ordenes
+  Antes (hoy): pymongo (db.productos.find_one(...))
+  Cambio: Modelos (Producto.objects.get(...), .create(...), .save())
+  Por qué: Igual que en clase: crear y obtener con el modelo
+  ────────────────────────────────────────
+  #: 8
+  Qué: Búsquedas por campos anidados
+  Antes (hoy): {'usuario._id': ...} con pymongo
+  Cambio: for + if sobre los resultados
+  Por qué: En djongo 1.3.6 no encontré soporte para filtrar por subcampos
+    (usuario__email)
+  ────────────────────────────────────────
+  #: 9
+  Qué: URLs y sesión
+  Antes (hoy): <int:id>
+  Cambio: Sin cambios
+  Por qué: Se mantiene el id numérico
+  ────────────────────────────────────────
+  #: 10
+  Qué: siguiente_id
+  Antes (hoy): Se usa en las vistas
+  Cambio: Se borra
+  Por qué: djongo asigna el id solo
+  ────────────────────────────────────────
+  #: 11
+  Qué: Migraciones
+  Antes (hoy): 0001 de djongo 1.2
+  Cambio: Se regeneran las 0001 y en cada una se agrega el RunPython con collMod
+
+    del esquema
+  Por qué: Una sola migración que crea la colección y el esquema
+  ────────────────────────────────────────
+  #: 12
+  Qué: Dockerfile
+  Antes (hoy): migrate --fake-initial && python datos_prueba.py && runserver
+  Cambio: migrate && runserver
+  Por qué: Sin datos de prueba
+  ────────────────────────────────────────
+  #: 13
+  Qué: Esquemas
+  Antes (hoy): —
+  Cambio: Como los aprobaste, con el campo id int (punto B)
+  Por qué: El id numérico se mantiene
+
+  Ya no hay que cambiar Python, Django ni la imagen de Mongo, ni pasar los ids a
+  ObjectId. El cambio queda mucho más chico que con Django MongoDB Backend.
+
+  Lo que pruebo al implementar
+
+  - Que djongo 1.3 funcione con Django 3.2.25 y si todavía necesita el parche
+    six de manage.py. Su setup.py solo pide django>=2.1, así que lo verifico en
+    el contenedor.
+  - Que managed = False funcione igual que en la prueba que hice con 1.2.38.
+
+  Para cerrar esta parte necesito dos cosas:
+  1. La línea exacta donde el profesor escribe EmbeddedField, con su import. Así
+     dejamos el import idéntico.
+  2. La versión de djongo y de Django que usa en clase, si aparece en algún pip 
+     install o requirements.txt.
+
+  Lo del admin inicial lo vemos en el plan general.
+
+✻ Churned for 1m 1s · done 12:30 a.m.
+
+❯ from djongo import models                                                     
+  from django.db import models cual es la diferencia entre estas dos lineas, la 
+  segunda linea es la que usa el profesor para tipar los datos                  
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● La diferencia
+
+  from djongo import models trae todo lo que trae from django.db import models, 
+  más los campos propios de Mongo. Lo comprobé en el código de djongo que tienen
+  instalado (djongo/models/__init__.py):
+
+  from django.db.models import *
+
+  from .fields import (
+      ArrayModelField, ListField, DjongoManager,
+      EmbeddedModelField, ArrayReferenceField, ObjectIdField,
+      GenericObjectIdField, DictField
+  )
+
+  La primera línea copia todo django.db.models, y la segunda agrega los campos
+  de Mongo. En la práctica:
+
+  ┌─────────────────────────────────────────┬──────────────┬───────────────┐
+  │                                         │    from      │               │
+  │     Lo que se escribe en el modelo      │  django.db   │ from djongo   │
+  │                                         │   import     │ import models │
+  │                                         │    models    │               │
+  ├─────────────────────────────────────────┼──────────────┼───────────────┤
+  │ models.Model, models.CharField,         │              │ ✅ (los       │
+  │ models.IntegerField,                    │ ✅           │ mismos,       │
+  │ models.BooleanField,                    │              │ copiados de   │
+  │ models.DateTimeField…                   │              │ Django)       │
+  ├─────────────────────────────────────────┼──────────────┼───────────────┤
+  │ models.EmbeddedModelField /             │ ❌           │ ✅            │
+  │ models.ArrayModelField (djongo 1.2)     │              │               │
+  ├─────────────────────────────────────────┼──────────────┼───────────────┤
+  │ models.EmbeddedField /                  │ ❌           │ ✅ (en la     │
+  │ models.ArrayField (djongo 1.3)          │              │ 1.3)          │
+  ├─────────────────────────────────────────┼──────────────┼───────────────┤
+  │ models.ObjectIdField                    │ ❌           │ ✅            │
+  └─────────────────────────────────────────┴──────────────┴───────────────┘
+
+  Para los campos normales, las dos líneas dan exactamente lo mismo. La
+  diferencia solo aparece con los campos de Mongo.
+
+  Qué implica para el profesor
+
+  El import no dice qué base usa. Con cualquiera de las dos líneas, los datos
+  van a Mongo si el ENGINE del settings.py es djongo, y a SQL si es SQLite. El
+  import solo decide qué campos se pueden escribir en el modelo.
+
+  Si el profesor solo tiene from django.db import models, no puede escribir 
+  models.EmbeddedField(...), porque Django no tiene ese campo y daría error al
+  arrancar. Una de estas tres cosas tiene que pasar:
+  1. Tiene otra línea de import aparte, como from djongo.models import 
+     EmbeddedField, y escribe EmbeddedField(...) sin el models. adelante.
+  2. En el ejemplo donde usa EmbeddedField el import es from djongo import 
+     models, y en otros ejemplos sin campos anidados usa from django.db import 
+     models.
+  3. Lo explicó en la teoría pero no lo usó en un modelo que corra.
+
+  Propuesta para el proyecto
+
+  Usar el mismo import que el profesor para lo normal, más una línea aparte solo
+  para los campos de Mongo:
+
+  from django.db import models
+  from djongo.models import EmbeddedField, ArrayField
+
+  Así los modelos se ven como los de clase (models.CharField,
+  models.IntegerField…) y solo los campos anidados vienen de djongo. Es la
+  opción 1 de arriba, y deja claro qué viene de Django y qué de djongo.
+
+  Para confirmarlo, ¿me pasas la línea donde el profesor escribe EmbeddedField?
+  Lo que importa es si escribe models.EmbeddedField(...) o solo
+  EmbeddedField(...), y qué import tiene ese archivo.
+
+✻ Churned for 19s · done 12:34 a.m.
+
+※ recap: Estamos planeando cómo dejar MarketHub como pide el profesor; ahora definimos si seguir con djongo 1.3 usando `EmbeddedField`, y no hemos cambiado código. Lo siguiente es que me pases la línea exacta donde el profesor escribe `EmbeddedField`, con su import.
+
+❯ lo curioso es que el profesor tiene las clases con el abstract true, no creo  
+  que este usando djongo, porque el importa es todo de la linea que te dije, si 
+  esta trayendo esto from django.db import models, debo usar lo mismo,          
+  entonces como se cambiaria                                                    
+● Con lo que me cuentas hay algo que no cuadra, y antes de cambiar nada conviene
+  aclararlo. Las tres cosas juntas no pueden funcionar en Django:
+
+  1. from django.db import models no tiene EmbeddedField. Si el archivo solo
+     tiene ese import, escribir models.EmbeddedField(...) o EmbeddedField(...)
+     da AttributeError o NameError apenas arranca el proyecto. Ese campo tiene
+     que venir de algún otro lado.
+  2. Una clase con abstract = True no se puede usar para crear ni para hacer 
+     gets. Django no le pone .objects ni crea su colección.
+     Producto.objects.create(...) o Producto.objects.get(...) darían error si
+     Producto es abstracta.
+  3. "Se usa el modelo para crear y hacer gets" solo es posible con clases que
+     no son abstractas.
+
+  Así que el código del profesor tiene algo que no estamos viendo. Hay tres
+  posibilidades, y cada una lleva el proyecto por un camino distinto:
+
+  Si el profesor…: A. Usa abstract = True solo en las clases anidadas, y las
+    principales (Orden, Producto…) son normales con .objects
+  Significa: Es el patrón de djongo, aunque el import diga django.db (el
+    EmbeddedField vendría de otro import o de from djongo import models)
+  Cómo quedaría el proyecto: Lo que propuse: djongo 1.3,
+    EmbeddedField/ArrayField, managed = False en las anidadas por el error de
+    Django 3.2
+  ────────────────────────────────────────
+  Si el profesor…: B. Tiene todas las clases con abstract = True y guarda con
+    otra cosa (pymongo, db.coleccion.insert_one)
+  Significa: Los modelos son solo para describir la estructura ("tipar"), y el
+    CRUD real va directo a Mongo con JSON Schema
+  Cómo quedaría el proyecto: Lo más parecido a como está su proyecto hoy:
+  modelos
+    como descripción y vistas con pymongo. No habría que pasar todo al ORM
+  ────────────────────────────────────────
+  Si el profesor…: C. Su ejemplo es teórico y no corre tal cual
+  Significa: Es una guía de diseño, no un código para copiar
+  Cómo quedaría el proyecto: Elegimos la opción que funcione (A o B) y la
+    justificamos
+
+  La B encaja con algo que dijiste: que la segunda línea la usa "para tipar los 
+  datos". Si los modelos solo tipan, el profesor no los usaría para guardar, y
+  el plan de "todo con el ORM" iría en la dirección equivocada.
+
+  Para decidir sin adivinar, necesito ver dos cosas del ejemplo de clase:
+  1. Un models.py completo: una clase anidada y la clase principal que la usa,
+     con sus imports y su Meta.
+  2. Una vista donde cree o consulte datos, para ver si escribe
+     Modelo.objects.create(...) o algo como db.coleccion.insert_one(...).
+
+  Si además aparece el DATABASES del settings.py, queda resuelto del todo.
+  Pégamelos tal cual y te digo con certeza cuál es el caso y cómo quedarían sus
+  modelos con el mismo import.
+
+✻ Cooked for 27s · done 12:56 a.m.
+
+❯ el profesor esta usando django.db.backend.sqlite3, en el engine, en este caso 
+  que se hace?                                                                  
+
+● Eso lo aclara. Si el profesor tiene ENGINE: 'django.db.backends.sqlite3',
+  Django no se conecta a Mongo, y así encajan las piezas que no cuadraban.
+
+  Cómo trabaja el profesor
+
+  ┌──────────────────┬──────────────────────────────────────────────────────┐
+  │      Pieza       │                   Para qué la usa                    │
+  ├──────────────────┼──────────────────────────────────────────────────────┤
+  │ SQLite (el       │ Solo para lo interno de Django: sesiones, auth,      │
+  │ ENGINE)          │ admin y migraciones                                  │
+  ├──────────────────┼──────────────────────────────────────────────────────┤
+  │ models.py con    │ Solo para tipar, es decir, documentar la estructura  │
+  │ abstract = True  │ de los datos. Al ser abstractas, Django no crea      │
+  │                  │ tablas ni da .objects                                │
+  ├──────────────────┼──────────────────────────────────────────────────────┤
+  │ MongoDB          │ Los datos de la aplicación, a los que se accede      │
+  │                  │ directo con pymongo. No pasan por el ORM             │
+  ├──────────────────┼──────────────────────────────────────────────────────┤
+  │ JSON Schema      │ Lo que de verdad "blinda" la estructura dentro de    │
+  │                  │ Mongo                                                │
+  └──────────────────┴──────────────────────────────────────────────────────┘
+
+  Por eso tiene abstract = True y solo from django.db import models. Sus modelos
+  no guardan nada. Su "crear y hacer gets" sobre Mongo tiene que ser con
+  pymongo, porque con SQLite como ENGINE cualquier Modelo.objects... iría a
+  SQLite y no a Mongo.
+
+  Esto es muy parecido a como está su proyecto hoy: las vistas de usuarios,
+  productos y órdenes ya usan pymongo. La diferencia es que ustedes tienen
+  djongo como ENGINE, y categorías usa el ORM a través de djongo.
+
+  Qué cambia en el plan
+
+  El plan de "todo con el modelo" ya no aplica; se invierte:
+
+  ┌─────────────┬────────────────────┬──────────────────────────────────────┐
+  │    Tema     │   Antes del plan   │       Ahora (como el profesor)       │
+  ├─────────────┼────────────────────┼──────────────────────────────────────┤
+  │ ENGINE      │ djongo             │ django.db.backends.sqlite3           │
+  ├─────────────┼────────────────────┼──────────────────────────────────────┤
+  │             │                    │ Se quita de requirements.txt, junto  │
+  │ djongo      │ Instalado          │ con sqlparse, six y el parche de     │
+  │             │                    │ manage.py                            │
+  ├─────────────┼────────────────────┼──────────────────────────────────────┤
+  │             │ from djongo import │                                      │
+  │ Modelos     │  models, las       │ from django.db import models, todas  │
+  │             │ principales        │ con abstract = True, solo para tipar │
+  │             │ concretas          │                                      │
+  ├─────────────┼────────────────────┼──────────────────────────────────────┤
+  │             │ 3 apps con pymongo │ Las 4 con pymongo: categorías pasa a │
+  │ Vistas      │  y categorías con  │  pymongo como las demás              │
+  │             │ ORM                │                                      │
+  ├─────────────┼────────────────────┼──────────────────────────────────────┤
+  │             │ Las crea djongo    │ Las crea la migración con            │
+  │ Colecciones │ con CreateModel    │ create_collection y el esquema, como │
+  │             │                    │  en lo que pegaste                   │
+  ├─────────────┼────────────────────┼──────────────────────────────────────┤
+  │             │                    │ Ajustados a lo que guarda hoy el     │
+  │ Esquemas    │ —                  │ código: id int, snapshots con _id    │
+  │             │                    │ objectId                             │
+  └─────────────┴────────────────────┴──────────────────────────────────────┘
+
+  Ojo: esto deshace lo que decidimos antes ("pymongo pasa al modelo") y le
+  cambia más cosas a categorías, que es de tu compañero. Te lo marco para que lo
+  tengas en cuenta.
+
+  1. settings.py
+
+  DATABASES = {
+      'default': {
+          'ENGINE': 'django.db.backends.sqlite3',
+          'NAME': BASE_DIR / 'db.sqlite3',
+      }
+  }
+
+  MONGO_HOST = os.environ.get('MONGO_HOST', 'mongodb://localhost:27017/')
+  MONGO_NAME = 'markethub_db'
+  MarketHub/conexion.py deja de leer DATABASES y usa settings.MONGO_HOST y
+  settings.MONGO_NAME.
+
+  2. Modelos (ejemplo con órdenes)
+
+  Antes:
+  from djongo import models
+
+  class ProductoSnapshot(models.Model):
+      _id = models.ObjectIdField()
+      nombre = models.CharField(max_length=255)
+      precio = models.IntegerField()
+
+      class Meta:
+          abstract = True
+
+  class Orden(models.Model):
+      usuario = models.EmbeddedModelField(model_container=UsuarioSnapshot)
+      items = models.ArrayModelField(model_container=ItemOrden)
+      ...
+
+      class Meta:
+          db_table = 'ordenes'
+
+  Después:
+  from django.db import models
+
+  class ProductoSnapshot(models.Model):
+      nombre = models.CharField(max_length=255)
+      precio = models.IntegerField()
+
+      class Meta:
+          abstract = True
+
+  class Orden(models.Model):
+      usuario = models.JSONField()
+      items = models.JSONField()
+      ...
+
+      class Meta:
+          abstract = True
+  - Las clases anidadas (ProductoSnapshot, ItemOrden, Direccion…) quedan
+    abstractas, describiendo sus campos.
+  - django.db no tiene un campo para objetos anidados ni EmbeddedField, que no
+    existe ahí y daría error al arrancar. Los atributos anidados de la clase
+    principal se tipan con models.JSONField(), que sí existe en Django y
+    representa un objeto o una lista. Como la clase es abstracta, nunca se
+    guarda nada con ella.
+  - ESTADOS y ROL_CHOICES se quedan en los modelos para las listas de opciones.
+
+  3. Categorías pasa a pymongo
+
+  Igual que productos:
+  - Categoria.objects.get(...) pasa a db.categorias.find_one({'id': id}).
+  - .create(...) pasa a db.categorias.insert_one({...}) con siguiente_id.
+  - .save() pasa a db.categorias.update_one(...).
+  - .delete() pasa a db.categorias.delete_one(...).
+
+  Las plantillas no cambian.
+
+  4. Una migración por app que crea la colección con el esquema
+
+  Como los modelos son abstractos, Django no genera migraciones para ellos. Cada
+  app tiene una 0001 escrita a mano, sin CreateModel. Por ejemplo,
+  categorias/migrations/0001_initial.py:
+
+  from django.db import migrations
+  from MarketHub.conexion import db
+
+
+  def crear_coleccion(apps, schema_editor):
+      esquema = {
+          'bsonType': 'object',
+          'required': ['id', 'nombre', 'activo'],
+          'properties': {
+              '_id': {'bsonType': 'objectId'},
+              'id': {'bsonType': 'int'},
+              'nombre': {'bsonType': 'string'},
+              'descripcion': {'bsonType': ['string', 'null']},
+              'activo': {'bsonType': 'bool'}
+          },
+          'minProperties': 3,
+          'maxProperties': 5,
+          'additionalProperties': False
+      }
+      if 'categorias' in db.list_collection_names():
+          db.command('collMod', 'categorias', validator={'$jsonSchema':
+  esquema})
+      else:
+          db.create_collection('categorias', validator={'$jsonSchema': esquema})
+
+
+  class Migration(migrations.Migration):
+
+      dependencies = []
+
+      operations = [
+          migrations.RunPython(crear_coleccion),
+      ]
+
+  - Es lo mismo que tu db.createCollection("categorias", {validator: ...}),
+    escrito en Python dentro de la migración.
+  - El if es por seguridad. Django anota en SQLite qué migraciones ya corrió, y
+    si alguna vez SQLite y Mongo quedan desincronizados (por ejemplo, borras uno
+    y el otro no), la migración no falla.
+  - Para reiniciar la base hay que borrar las dos: docker compose down -v
+    (Mongo) y el archivo db.sqlite3. Si solo se borra Mongo, Django cree que las
+    migraciones ya corrieron y no vuelve a crear las colecciones con su
+    esquema.
+
+  5. Versiones
+
+  Sin djongo ya no hace falta quedarse en Django 3.2.
+  - Recomiendo Django 5.2 (LTS) y pymongo 4.x, con lo que el proyecto queda
+    igual al que generó tu compañero al inicio ("Generated by Django 5.2.17").
+  - Se quitan sqlparse, six, pytz y el parche django.utils.six de manage.py.
+  - Python 3.10 y Mongo 5.0 se quedan.
+  - Lo que usa el código de pymongo (find_one, insert_one, update_one,
+    count_documents, sort) funciona igual en la 4.x.
+
+  6. El resto queda como estaba
+
+  - Los esquemas, como los aprobaste: sin espacios, con id, la forma actual del
+    código, null donde aplica y email con pattern: "@".
+  - Las validaciones de las vistas no cambian, y el try/except queda como
+    respaldo con el error de pymongo.
+  - Se borran los datos de prueba.
+  - Todo lo ya aprobado: órdenes sin eliminar y con su pantalla de estado, el
+    eliminar de categorías bloqueado si tiene productos, se borran las
+    plantillas sin usar, la edición de una categoría se copia a sus productos, y
+    los errores de compra salen en la pantalla de confirmar.
+
+  ---
+
+  Para cerrar esta parte necesito que me confirmes tres cosas:
+  1. ¿El profesor se conecta a Mongo con pymongo (MongoClient)? Es lo que tiene
+     sentido con SQLite como ENGINE, pero si lo ves en su código queda
+     confirmado.
+  2. ¿Sigues de acuerdo con pasar categorías a pymongo? Es lo contrario a lo que
+     habíamos dicho, y es código de tu compañero.
+  3. El admin inicial, que sigue pendiente: (a) a mano en Mongo, o (b) que la
+     migración de usuarios lo inserte.
+
+✻ Baked for 1m 1s · done 1:00 a.m.
+
+※ recap: Estamos dejando MarketHub como el ejemplo de clase: SQLite como engine, Mongo con pymongo, modelos abstractos y JSON Schema en migraciones. Falta que confirmes tres cosas: si el profesor usa pymongo, si categorías pasa a pymongo y cómo crear el admin.
+
+❯ Pythonclass Direccion(models.Model):                                          
+      ciudad = models.CharField(max_length=100)                                 
+      calle = models.CharField(max_length=100)                                  
+                                                                                
+  class Meta:                                                                   
+      abstract = True                                                           
+  class Persona(models.Model):                                                  
+      nombre = models.CharField(max_length=100)                                 
+      direccion = models.EmbeddedField(model_container=Direccion)               
+  ArrayField: permite generar una lista dentro de una propiedad de documento,   
+  puede ser simple o de objetos.   Python# Lista de tipos simples:              
+  tags = models.ArrayField(                                                     
+      model_container=models.CharField(max_length=50)                           
+  )                                                                             
+                                                                                
+  Lista de objetos embebidos:                                                   
+                                                                                
+  class Telefono(models.Model):                                                 
+      numero = models.CharField(max_length=20)                                  
+                                                                                
+  class Meta:                                                                   
+      abstract = True                                                           
+  class Persona(models.Model):                                                  
+      nombre = models.CharField(max_length=100)                                 
+      telefonos = models.ArrayField(model_container=Telefono)                   
+  esto es como se usan los campos embebidos en el ejemplo                       
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● Ese ejemplo resuelve la duda: es la sintaxis exacta de djongo 1.3.
+
+  - models.EmbeddedField(model_container=Direccion) y
+    models.ArrayField(model_container=Telefono) son los nombres de djongo 1.3.x.
+    Lo comprobé en el paquete.
+  - Escribe models.EmbeddedField, con el models. adelante. Eso solo funciona si
+    models viene de djongo (from djongo import models), porque django.db.models
+    no tiene esos campos.
+  - abstract = True en las clases anidadas (Direccion, Telefono) y la clase
+    principal (Persona) normal es el patrón de la documentación de djongo.
+    Persona sí tiene colección y .objects, y eso es lo que usa para crear y
+    hacer gets.
+
+  Que su settings.py diga sqlite3 no encaja con este ejemplo, porque estos
+  campos no funcionan sin djongo como ENGINE. Probablemente ese settings.py es
+  de otro ejemplo o del proyecto base. Lo que importa es que el profesor enseña 
+  djongo con el ORM, así que se descarta lo de SQLite y pymongo, y volvemos al
+  plan de pasar todo a los modelos.
+
+  Por qué al profesor sí le funciona abstract = True y a ustedes no
+
+  Lo comprobé bajando las dos versiones de Django:
+
+  ┌──────────────────────────┬───────────────────────────────────────────────┐
+  │          Django          │  ¿Deja crear objetos de un modelo abstract?   │
+  ├──────────────────────────┼───────────────────────────────────────────────┤
+  │ 3.1.14                   │ ✅ Sí                                         │
+  ├──────────────────────────┼───────────────────────────────────────────────┤
+  │ 3.2.25 (la que tienen    │ ❌ No (TypeError: Abstract models cannot be   │
+  │ ustedes)                 │ instantiated)                                 │
+  └──────────────────────────┴───────────────────────────────────────────────┘
+
+  djongo, al leer un subdocumento, crea un objeto de la clase anidada. Con
+  Django 3.1 o anterior, abstract = True funciona; con 3.2 se rompe. El ejemplo
+  del profesor viene de la documentación de djongo, que se escribió cuando
+  Django 3.2 no existía.
+
+  Dos opciones
+
+  Opción 1 (recomendada): igual que el profesor.
+  - djongo==1.3.x y Django==3.1.14.
+  - Los modelos quedan idénticos a los de clase: from djongo import models,
+    models.EmbeddedField, models.ArrayField y abstract = True.
+  - Detalle a probar: Django 3.1 se probó oficialmente hasta Python 3.9, y el
+    Dockerfile usa python:3.10-slim. Si da problemas, se cambia la imagen a
+    python:3.9-slim. Lo verifico antes de tocar las vistas.
+
+  Opción 2: quedarse en Django 3.2.
+  - djongo==1.3.x con Django==3.2.25.
+  - Todo igual que el profesor, pero las clases anidadas usan managed = False en
+    vez de abstract = True. Ya lo probé y funciona.
+  - La diferencia con el ejemplo de clase es una línea por clase anidada, y
+    habría que explicarla si preguntan.
+
+  Así quedaría ordenes/models.py con la opción 1
+
+  Antes (djongo 1.2):
+  from djongo import models
+
+  class ProductoSnapshot(models.Model):
+      _id = models.ObjectIdField()
+      nombre = models.CharField(max_length=255)
+      precio = models.IntegerField()
+
+      class Meta:
+          abstract = True
+
+  class ItemOrden(models.Model):
+      producto = models.EmbeddedModelField(model_container=ProductoSnapshot)
+      precio_unitario = models.IntegerField()
+      cantidad = models.IntegerField()
+
+      class Meta:
+          abstract = True
+
+  class Orden(models.Model):
+      usuario = models.EmbeddedModelField(model_container=UsuarioSnapshot)
+      items = models.ArrayModelField(model_container=ItemOrden)
+      ...
+
+  Después (djongo 1.3, como el profesor):
+  from djongo import models
+
+  class ProductoSnapshot(models.Model):
+      producto_id = models.IntegerField()
+      nombre = models.CharField(max_length=255)
+      precio = models.IntegerField()
+
+      class Meta:
+          abstract = True
+
+  class ItemOrden(models.Model):
+      producto = models.EmbeddedField(model_container=ProductoSnapshot)
+      precio_unitario = models.IntegerField()
+      cantidad = models.IntegerField()
+
+      class Meta:
+          abstract = True
+
+  class Orden(models.Model):
+      usuario = models.EmbeddedField(model_container=UsuarioSnapshot)
+      items = models.ArrayField(model_container=ItemOrden)
+      ...
+
+  Cambian tres cosas:
+  - EmbeddedModelField pasa a EmbeddedField.
+  - ArrayModelField pasa a ArrayField.
+  - El _id = ObjectIdField() de los snapshots pasa a producto_id, usuario_id o
+    categoria_id como IntegerField, porque djongo descarta los ObjectIdField
+    dentro de los subdocumentos al guardar.
+
+  abstract = True se queda.
+
+  El resto del plan vuelve a como estaba
+
+  - settings.py: el ENGINE sigue siendo djongo.
+  - Vistas de usuarios, productos y órdenes: pasan de pymongo a los modelos
+    (.objects.get, .create, .save()). Los subdocumentos se guardan con objetos
+    de las clases anidadas, como ProductoSnapshot(...). Categorías ya usa el
+    modelo.
+  - Búsquedas por campos anidados: con for + if, salvo que en la prueba djongo
+    1.3 permita filtrarlos.
+  - Ids: las URLs <int:id> y la sesión no cambian. Se borra siguiente_id.
+  - Migraciones: una 0001 por app, con el CreateModel y luego el RunPython con
+    collMod del esquema.
+  - Dockerfile: migrate && runserver.
+  - Esquemas: como los aprobaste, con id int, null donde aplica y email con
+    pattern: "@".
+  - Se borran los datos de prueba, y se aplica todo lo ya aprobado (órdenes sin
+    eliminar, pantalla de estado, categorías bloqueadas, plantillas sin usar,
+    edición de categoría, errores de confirmar).
+
+  Para cerrar esta parte necesito dos respuestas:
+  1. ¿Opción 1 (Django 3.1, abstract = True idéntico al profesor) u opción 2
+     (Django 3.2, managed = False)?
+  2. El admin inicial: (a) a mano en Mongo, o (b) que lo cree la migración de
+     usuarios.
+
+✻ Cogitated for 45s · done 1:06 a.m.

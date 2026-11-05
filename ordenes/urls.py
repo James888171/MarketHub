@@ -14,5 +14,4 @@ urlpatterns = [
     path('<int:id>/', views.orden_detalle, name='orden_detalle'),
     path('<int:id>/estado/', views.orden_cambiar_estado, name='orden_cambiar_estado'),
     path('<int:id>/cancelar/', views.orden_cancelar, name='orden_cancelar'),
-    path('<int:id>/eliminar/', views.orden_eliminar, name='orden_eliminar'),
 ]

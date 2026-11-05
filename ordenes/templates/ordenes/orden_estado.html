@@ -1,0 +1,35 @@
+{% extends 'productos/base.html' %}
+
+{% block titulo %}Cambiar estado{% endblock %}
+
+{% block contenido %}
+<h1>Cambiar estado de la orden #{{ orden.id }}</h1>
+
+{% if error %}
+    <p class="error">{{ error }}</p>
+{% endif %}
+
+<p>Cliente: {{ orden.usuario.nombre }} ({{ orden.usuario.email }})</p>
+<p>Total: <b>${{ orden.total }}</b></p>
+<p>Estado actual: <b>{{ orden.estado_nombre }}</b></p>
+
+<form class="formulario" method="post">
+    {% csrf_token %}
+
+    <p>
+        <label for="estado">Nuevo estado</label>
+        <select id="estado" name="estado">
+            {% for valor, nombre in estados %}
+                <option value="{{ valor }}" {% if orden.estado == valor %}selected{% endif %}>{{ nombre }}</option>
+            {% endfor %}
+        </select>
+    </p>
+
+    <p>Si eliges Cancelado, los productos vuelven al inventario.</p>
+
+    <p class="acciones">
+        <button type="submit">Guardar estado</button>
+        <a href="{% url 'ordenes:orden_detalle' orden.id %}">Volver</a>
+    </p>
+</form>
+{% endblock %}
